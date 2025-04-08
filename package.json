@@ -1,0 +1,149 @@
+{
+  "name": "lipd-vscode",
+  "displayName": "LiPD File Support",
+  "description": "Support for reading and writing LiPD (Linked Paleo Data) files in VSCode",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Other"
+  ],
+  "main": "./out/main.js",
+  "contributes": {
+    "customEditors": [
+      {
+        "viewType": "lipd-vscode.lipdEditor",
+        "displayName": "LiPD Editor",
+        "selector": [
+          {
+            "filenamePattern": "*.lpd"
+          }
+        ],
+        "priority": "default"
+      }
+    ],
+    "commands": [
+      {
+        "command": "lipd-vscode.openLiPD",
+        "title": "Open LiPD File"
+      },
+      {
+        "command": "lipd-vscode.saveLiPD",
+        "title": "Save as LiPD File"
+      },
+      {
+        "command": "lipd-vscode.showOutput",
+        "title": "Show LiPD Debug Output"
+      },
+      {
+        "command": "lipd-vscode.convertToRDF",
+        "title": "Convert LiPD to RDF"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "lipd-vscode.openLiPD",
+          "when": "resourceExtname == .lpd"
+        },
+        {
+          "command": "lipd-vscode.saveLiPD",
+          "when": "resourceExtname == .lpd"
+        },
+        {
+          "command": "lipd-vscode.convertToRDF",
+          "when": "resourceExtname == .lpd",
+          "group": "navigation"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "lipd-vscode.openLiPD",
+          "when": "resourceExtname == .lpd",
+          "group": "navigation"
+        },
+        {
+          "command": "lipd-vscode.convertToRDF",
+          "when": "resourceExtname == .lpd",
+          "group": "navigation"
+        }
+      ]
+    },
+    "languages": [
+      {
+        "id": "lipd",
+        "aliases": [
+          "LiPD",
+          "lipd"
+        ],
+        "extensions": [
+          ".lpd"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "documentSelectors": [
+      {
+        "language": "lipd",
+        "scheme": "file",
+        "pattern": "**/*.lpd"
+      }
+    ],
+    "capabilities": {
+      "untrustedWorkspaces": {
+        "supported": true
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=out/main.js --external:vscode --format=cjs --platform=node",
+    "esbuild": "npm run esbuild-base -- --sourcemap",
+    "esbuild-watch": "npm run esbuild-base -- --sourcemap --watch",
+    "esbuild-webview": "node esbuild.config.js",
+    "esbuild-webview-watch": "nodemon --watch src/webview --ext ts,tsx --exec \"npm run esbuild-webview\"",
+    "build": "npm run esbuild && npm run esbuild-webview",
+    "watch": "concurrently \"npm run esbuild-watch\" \"npm run esbuild-webview-watch\"",
+    "test-compile": "tsc -p ./",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/glob": "^7.1.3",
+    "@types/mocha": "^8.2.2",
+    "@types/node": "14.x",
+    "@types/react": "^17.0.39",
+    "@types/react-dom": "^17.0.26",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^4.16.0",
+    "@typescript-eslint/parser": "^4.16.0",
+    "concurrently": "^7.0.0",
+    "esbuild": "^0.14.25",
+    "eslint": "^7.21.0",
+    "glob": "^7.1.6",
+    "mocha": "^10.2.0",
+    "nodemon": "^3.1.0",
+    "typescript": "^4.5.5",
+    "vscode-test": "^1.5.1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@emotion/react": "^11.11.1",
+    "@emotion/styled": "^11.11.0",
+    "@mui/icons-material": "^5.14.13",
+    "@mui/lab": "^5.0.0-alpha.165",
+    "@mui/material": "^5.17.1",
+    "@mui/x-data-grid": "^7.28.3",
+    "@mui/x-tree-view": "^7.28.1",
+    "@types/mapbox-gl": "^3.4.1",
+    "lipdjs": "file:../lipdjs",
+    "mapbox-gl": "^3.11.0",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "zustand": "^3.7.1"
+  }
+}

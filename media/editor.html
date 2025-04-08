@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Content Security Policy for VS Code webviews -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src {{cspSource}} https:; style-src {{cspSource}} 'unsafe-inline' https://api.mapbox.com; font-src https://fonts.gstatic.com; script-src 'nonce-{{nonce}}' https://api.mapbox.com; connect-src {{cspSource}} https://api.mapbox.com https://*.tiles.mapbox.com; worker-src blob:;">
+    
+    <title>LiPD Editor</title>
+    
+    <!-- Load CSS -->
+    <link href="{{cssUri}}" rel="stylesheet">
+    
+    <!-- Load the editor script -->
+    <script nonce="{{nonce}}" type="module" src="{{scriptUri}}"></script>
+
+    <!-- React and dependencies will be loaded by the editor script -->
+</head>
+<body>
+    <!-- Root element for the LiPD Editor -->
+    <div id="lipd-editor-root"></div>
+</body>
+</html> 
