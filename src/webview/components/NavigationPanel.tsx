@@ -4,8 +4,6 @@ import { TreeView } from '@mui/x-tree-view/TreeView';
 import { TreeItem } from '@mui/x-tree-view/TreeItem';
 import { Dataset } from 'lipdjs';
 import { useLiPDStore } from '../store';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 
 const NavigationPanel: React.FC<{ dataset: Dataset | null }> = ({ dataset }) => {
     const { expandedNodes, setExpandedNodes, setSelectedNode } = useLiPDStore((state: any) => ({
@@ -31,21 +29,19 @@ const NavigationPanel: React.FC<{ dataset: Dataset | null }> = ({ dataset }) => 
     };
 
     const handleNodeSelect = (event: React.SyntheticEvent<Element, Event>, itemId: string | null) => {
-        if (itemId) {
-            console.log('TreeView selected:', itemId);
-            setSelectedNode(itemId);
-        }
+        // console.log('TreeView selected:', itemId);
+        setSelectedNode(itemId || '');
     };
 
     const renderPaleoDataTree = () => {
         return (
-            <TreeItem itemId="paleoData" label="PaleoData">
+            <TreeItem itemId="dataset.paleoData" label="PaleoData">
                 {dataset.getPaleoData()?.map((paleoData, paleoIndex) => {
-                    const paleoNodeId = `paleoData.${paleoIndex}`;
+                    const paleoNodeId = `dataset.paleoData.${paleoIndex}`;
                     return (
                         <TreeItem key={paleoNodeId} itemId={paleoNodeId} label={paleoData.getName() || `PaleoData ${paleoIndex + 1}`}>
                             {paleoData.getMeasurementTables()?.map((table, tableIndex) => {
-                                const tableNodeId = `paleoData.${paleoIndex}.measurementTables.${tableIndex}`;
+                                const tableNodeId = `dataset.paleoData.${paleoIndex}.measurementTables.${tableIndex}`;
                                 return (
                                     <TreeItem 
                                         key={tableNodeId} 
@@ -63,13 +59,13 @@ const NavigationPanel: React.FC<{ dataset: Dataset | null }> = ({ dataset }) => 
 
     const renderChronDataTree = () => {
         return (
-            <TreeItem itemId="chronData" label="ChronData">
+            <TreeItem itemId="dataset.chronData" label="ChronData">
                 {dataset.getChronData()?.map((chronData, chronIndex) => {
-                    const chronNodeId = `chronData.${chronIndex}`;
+                    const chronNodeId = `dataset.chronData.${chronIndex}`;
                     return (
                         <TreeItem key={chronNodeId} itemId={chronNodeId} label={`ChronData ${chronIndex + 1}`}>
                             {chronData.getMeasurementTables()?.map((table, tableIndex) => {
-                                const tableNodeId = `chronData.${chronIndex}.measurementTables.${tableIndex}`;
+                                const tableNodeId = `dataset.chronData.${chronIndex}.measurementTables.${tableIndex}`;
                                 return (
                                     <TreeItem 
                                         key={tableNodeId} 
@@ -87,9 +83,9 @@ const NavigationPanel: React.FC<{ dataset: Dataset | null }> = ({ dataset }) => 
 
     const renderPublicationsTree = () => {
         return (
-            <TreeItem itemId="publications" label="Publications">
+            <TreeItem itemId="dataset.publications" label="Publications">
                 {dataset.getPublications()?.map((publication, index) => {
-                    const pubNodeId = `publications.${index}`;
+                    const pubNodeId = `dataset.publications.${index}`;
                     return (
                         <TreeItem 
                             key={pubNodeId} 
@@ -111,10 +107,11 @@ const NavigationPanel: React.FC<{ dataset: Dataset | null }> = ({ dataset }) => 
                 onSelectedItemsChange={handleNodeSelect}
                 sx={{ height: '100%', flexGrow: 1, maxWidth: 400, overflowY: 'auto' }}
             >
-                <TreeItem itemId="dataset" label="Dataset" />
-                {renderPaleoDataTree()}
-                {renderChronDataTree()}
-                {renderPublicationsTree()}
+                <TreeItem itemId="dataset" label="Dataset">
+                    {renderPaleoDataTree()}
+                    {renderChronDataTree()}
+                    {renderPublicationsTree()}
+                </TreeItem>
             </TreeView>
         </Box>
     );

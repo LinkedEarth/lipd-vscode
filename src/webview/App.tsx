@@ -1,11 +1,12 @@
 import React, { useEffect } from 'react';
-import { Box, CssBaseline, ThemeProvider, createTheme, Alert, Snackbar } from '@mui/material';
+import { Box, CssBaseline, ThemeProvider, createTheme, Alert, Snackbar, AppBar, Toolbar, Typography } from '@mui/material';
 import { Dataset } from 'lipdjs';
 import { VSCodeMessage } from './types';
 import { useLiPDStore } from './store';
 import NavigationPanel from './components/NavigationPanel';
-import EditorPanel from './components/EditorPanel';
-
+import { EditorPanel } from './components/EditorPanel';
+import AppBarBreadcrumbs from './components/AppBarBreadcrumbs';
+import { RouterProvider } from './router';
 
 // Create theme
 const theme = createTheme({
@@ -24,7 +25,7 @@ const theme = createTheme({
         }
     },
     components: {
-        MuiTreeItem: {
+        TreeItem: {
             styleOverrides: {
                 root: {
                     padding: '2px 0',
@@ -38,18 +39,34 @@ const theme = createTheme({
                 }
             }
         },
-        MuiPaper: {
+        Paper: {
             styleOverrides: {
                 root: {
                     padding: 16,
                 }
             }
         },
-        MuiTableCell: {
+        TableCell: {
             styleOverrides: {
                 root: {
                     padding: '8px 16px',
                     fontSize: '0.8125rem',
+                }
+            }
+        },
+        AppBar: {
+            styleOverrides: {
+                root: {
+                    boxShadow: 'none',
+                    borderBottom: '1px solid rgba(0, 0, 0, 0.12)'
+                }
+            }
+        },
+        Toolbar: {
+            styleOverrides: {
+                root: {
+                    minHeight: '48px',
+                    padding: '0 16px'
                 }
             }
         }
@@ -107,6 +124,7 @@ const App: React.FC = () => {
     const notification = useLiPDStore((state: any) => state.notification);
     const rightPanelOpen = useLiPDStore((state: any) => state.rightPanelOpen);
     const initialize = useLiPDStore((state: any) => state.initialize);
+    const selectedNode = useLiPDStore((state: any) => state.selectedNode);
 
     // Initialize the store when the app mounts
     useEffect(() => {
@@ -116,28 +134,50 @@ const App: React.FC = () => {
     return (
         <ThemeProvider theme={theme}>
             <CssBaseline />
-            <Box sx={{ 
-                display: 'flex', 
-                height: '100vh',
-                overflow: 'hidden'
-            }}>
+            <RouterProvider>
                 <Box sx={{ 
-                    width: 300, 
-                    flexShrink: 0,
-                    borderRight: '1px solid',
-                    borderColor: 'divider',
-                    overflow: 'auto'
+                    display: 'flex', 
+                    flexDirection: 'column',
+                    height: '100vh',
+                    overflow: 'hidden'
                 }}>
-                    <NavigationPanel dataset={dataset} />
+                    <AppBar 
+                        position="static" 
+                        color="default" 
+                        elevation={0}
+                        sx={{ 
+                            boxShadow: 'none',
+                            borderBottom: '1px solid rgba(0, 0, 0, 0.12)' 
+                        }}
+                    >
+                        <Toolbar>
+                            <AppBarBreadcrumbs />
+                        </Toolbar>
+                    </AppBar>
+                    <Box sx={{ 
+                        display: 'flex',
+                        flex: 1,
+                        overflow: 'hidden'
+                    }}>
+                        <Box sx={{ 
+                            width: 300, 
+                            flexShrink: 0,
+                            borderRight: '1px solid',
+                            borderColor: 'divider',
+                            overflow: 'auto'
+                        }}>
+                            <NavigationPanel dataset={dataset} />
+                        </Box>
+                        <Box sx={{ 
+                            flex: 1,
+                            overflow: 'auto',
+                            display: rightPanelOpen ? 'block' : 'none'
+                        }}>
+                            <EditorPanel />
+                        </Box>
+                    </Box>
                 </Box>
-                <Box sx={{ 
-                    flex: 1,
-                    overflow: 'auto',
-                    display: rightPanelOpen ? 'block' : 'none'
-                }}>
-                    <EditorPanel />
-                </Box>
-            </Box>
+            </RouterProvider>
             {notification && (
                 <Snackbar 
                     open={true} 

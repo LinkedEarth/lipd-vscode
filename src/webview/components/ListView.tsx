@@ -2,13 +2,12 @@ import React from 'react';
 import { Box, List, ListItem, ListItemText, Divider, IconButton, Typography, Button } from '@mui/material';
 import { Edit, Delete, Add } from '@mui/icons-material';
 import { useLiPDStore } from '../store';
+import { Schema } from '../schemas';
 
 interface ListViewProps {
     title: string;
-    items: Array<{
-        primary: string;
-        secondary: string;
-    }>;
+    items: Array<any>;
+    schema: Schema;
     onAdd: () => void;
     onEdit: (index: number) => void;
     onDelete: (index: number) => void;
@@ -21,6 +20,7 @@ interface ListViewProps {
 const ListView: React.FC<ListViewProps> = ({ 
     title, 
     items, 
+    schema,
     onAdd, 
     onEdit, 
     onDelete, 
@@ -58,8 +58,12 @@ const ListView: React.FC<ListViewProps> = ({
                     </Button>
                 </Box>
             )}
-            <List dense={dense}>
-                {items.map((item, index) => (
+            <List dense={dense} sx={{ width: '100%', p: 0 }}>
+                {(items || []).map((item, index) => {
+                    const primary = schema?.label?.primary ? schema.label.primary(item) : "Item " + (index + 1);
+                    const secondary = schema?.label?.secondary ? schema.label.secondary(item) : ""
+                    
+                    return (
                     <React.Fragment key={index}>
                         {index > 0 && <Divider />}
                         <ListItem
@@ -82,18 +86,25 @@ const ListView: React.FC<ListViewProps> = ({
                                         }}
                                         size={dense ? "small" : "medium"}
                                     >
-                                        <Delete sx={{ fontSize: dense ? 18 : 24 }} />
+                                        <Delete sx={{ fontSize: dense ? 16 : 24 }} />
                                     </IconButton>
                                 </Box>
                             }
                         >
                             <ListItemText
-                                primary={item.primary}
-                                secondary={item.secondary}
+                                primaryTypographyProps={{
+                                    fontSize: dense ? '0.9rem' : '1.2rem'
+                                }}
+                                secondaryTypographyProps={{
+                                    fontSize: dense ? '0.8rem' : '0.9rem'
+                                }}
+                                primary={primary}
+                                secondary={secondary}
                             />
                         </ListItem>
                     </React.Fragment>
-                ))}
+                    );
+                })}
             </List>
         </>
     );
@@ -104,7 +115,7 @@ const ListView: React.FC<ListViewProps> = ({
                 component="fieldset" 
                 sx={{ 
                     m: 0,
-                    p: 1,
+                    mb: 1,
                     border: '1px solid',
                     borderColor: 'divider',
                     borderRadius: 1,

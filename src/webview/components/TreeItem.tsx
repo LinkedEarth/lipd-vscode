@@ -39,7 +39,7 @@ const TreeItem: React.FC<TreeItemProps> = ({
 
     const handleClick = (e: React.MouseEvent) => {
         e.stopPropagation();
-        console.log('TreeItem clicked:', nodeId);
+        // console.log('TreeItem clicked:', nodeId);
         setSelectedNode(nodeId);
     };
 

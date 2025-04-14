@@ -15,7 +15,7 @@ export const useLiPDStore = create<AppState>((set, get) => ({
     
     // UI state
     selectedNode: null,
-    expandedNodes: new Set(['dataset']),
+    expandedNodes: new Set(['']),
     rightPanelOpen: true,
     selectedTab: 0,
     
@@ -48,7 +48,7 @@ export const useLiPDStore = create<AppState>((set, get) => ({
     },
     
     setSelectedNode: (node) => {
-        console.log('Setting selected node:', node);
+        // console.log('Setting selected node:', node);
         set({ selectedNode: node })
     },
     
@@ -113,24 +113,51 @@ export const useLiPDStore = create<AppState>((set, get) => ({
     setSelectedTab: (tab) => set({ selectedTab: tab }),
     
     updateDataset: (field, value) => {
+        // console.log('Updating dataset field:', field, 'with value:', value);
         const dataset = { ...get().dataset } as Dataset;
+        
+        // For direct field updates, try to use a setter if available
+        if (typeof field === 'string' && !field.includes('.')) {
+            const setterName = `set${field.charAt(0).toUpperCase()}${field.slice(1)}`;
+            // Use type-safe approach for accessing object methods
+            if (dataset && typeof (dataset as any)[setterName] === 'function') {
+                (dataset as any)[setterName](value);
+                // console.log(`Called setter ${setterName} directly`);
+                
+                // Force state update
+                set({ dataset });
+                
+                // Send message to extension
+                vscode.postMessage({
+                    type: 'datasetUpdated',
+                    data: dataset
+                });
+                
+                return;
+            }
+        }
+        
         const updateNestedProperty = (obj: any, path: string | string[], value: any): any => {
             if (typeof path === 'string') {
                 // Handle dot notation paths
                 const parts = path.split('.');
+                parts.shift(); // Remove the first part, which is the dataset
+
                 const lastKey = parts.pop() as string;
+                if (parts.length > 0 && parts[0] === '') {
+                    parts.shift();
+                }
+
                 let current = obj;
                 
                 // Traverse the path
-                for (const part of parts) {
-                    if (!current[part]) {
-                        current[part] = {};
-                    }
+                for (let i = 0; i < parts.length; i++) {
+                    const part = parts[i];
                     current = current[part];
                 }
                 
-                // Set the value
-                current[lastKey] = value;
+                // Try to use setter if available
+                current[lastKey] = value
             } else if (Array.isArray(path) && path.length === 1) {
                 // If it's an array with just one string element
                 obj[path[0]] = value;
@@ -139,8 +166,9 @@ export const useLiPDStore = create<AppState>((set, get) => ({
             }
             return obj;
         };
-        
         updateNestedProperty(dataset, field, value);
+        
+        // Force state update with properly typed dataset
         set({ dataset });
         
         // Send message to extension
