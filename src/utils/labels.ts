@@ -1,4 +1,4 @@
-import { DataTable, PaleoData, Person, Publication, Variable } from "lipdjs";
+import { Change, ChangeLog, ChronData, DataTable, Funding, PaleoData, Person, Publication, Variable } from "lipdjs";
 
 export const getPublicationAuthorsLabel = (publication: Publication) : string => {
     return publication.authors.map((author) => author.name).join(', ');
@@ -20,16 +20,16 @@ export const getDataTableVariablesLabel = (dataTable: DataTable) : string => {
     return dataTable.variables.map((variable) => variable.name).join(', ');
 };
 
-export const getPaleoDataLabel = (paleoData: PaleoData) : string => {
-    return paleoData.name || '';
+export const getMeasurementTablesLabel = (data: PaleoData | ChronData) : string => {
+    return (data.measurementTables?.length.toString() || '0') + ' measurement tables';
 };
 
-export const getPaleoDataMeasurementTablesLabel = (paleoData: PaleoData) : string => {
-    return (paleoData.measurementTables?.length.toString() || '0') + ' measurement tables';
+export const getModeledByLabel = (data: PaleoData | ChronData) : string => {
+    return (data.modeledBy?.length.toString() || '0') + ' models';
 };
 
-export const getPaleoDataModeledByLabel = (paleoData: PaleoData) : string => {
-    return (paleoData.modeledBy?.length.toString() || '0') + ' models';
+export const getDataDetailsLabel = (data: PaleoData | ChronData) : string => {
+    return `${getMeasurementTablesLabel(data)}, ${getModeledByLabel(data)}`;
 };
 
 export const getPersonNameLabel = (person: Person) : string => {
@@ -48,3 +48,22 @@ export const getVariableUnitsLabel = (variable: Variable) : string => {
     return variable.units?.getLabel() || '';
 };
 
+export const getFundingLabel = (funding: Funding) : string => {
+    return funding.fundingAgency || '';
+};
+
+export const getFundingGrantsLabel = (funding: Funding) : string => {
+    return (funding.grants || []).join(', ');
+};
+
+export const getChangeLogLabel = (changeLog: ChangeLog) : string => {
+    return changeLog.timestamp || '';
+};
+
+export const getChangeLogCuratorLabel = (changeLog: ChangeLog) : string => {
+    return changeLog.contributor || '';
+};
+
+export const getChangeLogEntryLabel = (changeLogEntry: Change) : string => {
+    return changeLogEntry.name || '';
+};

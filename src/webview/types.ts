@@ -12,6 +12,8 @@ export interface Notification {
     message: string;
 }
 
+export type ThemeMode = 'light' | 'dark' | 'high-contrast';
+
 // Interface for app state
 export interface AppState {
     // Dataset state
@@ -24,6 +26,7 @@ export interface AppState {
     expandedNodes: Set<string>;
     rightPanelOpen: boolean;
     selectedTab: number;
+    themeMode: ThemeMode;
     
     // Validation state
     validationErrors: Record<string, any>;
@@ -35,6 +38,8 @@ export interface AppState {
     // Actions
     initialize: () => void;
     setDataset: (dataset: any) => void;
+    setIsLoading: (isLoading: boolean) => void;
+    setThemeMode: (mode: ThemeMode) => void;
     setError: (error: string) => void;
     setSaveComplete: (success: boolean, error?: string) => void;
     setValidationResults: (results: { errors?: Record<string, any>; warnings?: Record<string, any> }) => void;

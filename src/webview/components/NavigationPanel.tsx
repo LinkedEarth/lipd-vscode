@@ -111,6 +111,10 @@ const NavigationPanel: React.FC<{ dataset: Dataset | null }> = ({ dataset }) => 
                     {renderPaleoDataTree()}
                     {renderChronDataTree()}
                     {renderPublicationsTree()}
+                    <TreeItem
+                        itemId="dataset.changeLogs"
+                        label="ChangeLogs"
+                    />
                 </TreeItem>
             </TreeView>
         </Box>

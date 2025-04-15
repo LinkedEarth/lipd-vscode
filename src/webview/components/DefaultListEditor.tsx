@@ -5,23 +5,27 @@ import {
 import { Schema, SchemaField } from '../schemas';
 import ListView from './ListView';
 import { useLiPDStore } from '../store';
-import { getValueFromPath } from '../../utils/utils';
+import { getValueFromPath, createDefaultItem } from '../../utils/utils';
 import { EditorProps } from '../router';
 
 
 export const DefaultListEditor: React.FC<EditorProps> = ({
+    dataset,
     path,
     title = '',
     params = {},
     onUpdate,
     schema,
     columns = 1,
-    dense = false
+    dense = true,
+    fieldSchema = {} as SchemaField
 }) => {
     const setSelectedNode = useLiPDStore(state => state.setSelectedNode);
-    const dataset = useLiPDStore(state => state.dataset);
     const list = getValueFromPath(dataset, path);
-    console.log("Schema:", schema);
+
+    // console.log("Path:", path);
+    // console.log("List:", list);
+    // console.log("Schema:", schema);
 
     // Check if dataset exists
     if (!dataset) return null;
@@ -50,51 +54,6 @@ export const DefaultListEditor: React.FC<EditorProps> = ({
         setSelectedNode(newItemPath);
     };
 
-    // Helper function to create a default item based on schema
-    const createDefaultItem = (objectSchema: Schema | undefined, fieldSchema: SchemaField | undefined): any => {
-        console.log("Creating default item for objectSchema:", objectSchema, "and fieldSchema:", fieldSchema);
-        if (objectSchema) {
-            // This is a Top level schema object
-            const obj: any = new objectSchema.class();
-            Object.entries(objectSchema.fields || {}).forEach(([key, propSchema]) => {
-                obj[key] = createDefaultItem(propSchema.schema, propSchema);
-            });
-            return obj;
-        }
-        else if (fieldSchema) {
-            // This is a SchemaField
-            if (fieldSchema.type === 'object' && fieldSchema.schema) {
-                const obj: any = new fieldSchema.schema.class();
-                Object.entries(fieldSchema.schema.fields || {}).forEach(([key, propSchema]) => {
-                    obj[key] = createDefaultItem(propSchema.schema, propSchema);
-                });
-                return obj;
-            }
-            return getDefaultValueForType(fieldSchema);            
-        }
-        else {
-            return {};
-        }
-    };
-
-    // Helper function to get default value based on type
-    const getDefaultValueForType = (schema: SchemaField): any => {
-        switch (schema.type) {
-            case 'string':
-                return '';
-            case 'number':
-                return 0;
-            case 'boolean':
-                return false;
-            case 'array':
-                return [];
-            case 'object':
-                return {};
-            default:
-                return null;
-        }
-    };
-
     const handleDeleteItem = (index: number) => {        
         // Create a new array without the deleted item
         const newList = [...list];
@@ -105,20 +64,17 @@ export const DefaultListEditor: React.FC<EditorProps> = ({
     };
 
     return (
-        <Box sx={{ 
-            width: '100%',
-            p: dense ? 0 : 2
-        }}>
-            <ListView
-                schema={schema as Schema}
-                title={title}
-                items={list}
-                onAdd={() => handleAddItem()}
-                onEdit={(index) => handleEditItem(index)}
-                onDelete={(index) => handleDeleteItem(index)}
-                addButtonText="Add"
-                pathPrefix={path}
-            />
-        </Box>
+        <ListView
+            schema={schema as Schema}
+            title={title || fieldSchema.label || 'Items'}
+            items={list}
+            onAdd={() => handleAddItem()}
+            onEdit={(index) => handleEditItem(index)}
+            onDelete={(index) => handleDeleteItem(index)}
+            addButtonText="Add"
+            pathPrefix={path}
+            dense={dense}
+            fieldSchema={fieldSchema}
+        />
     );
 };

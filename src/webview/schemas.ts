@@ -1,16 +1,21 @@
 import { Dataset, Publication, Person, 
   Location, ArchiveType, ChangeLog, Funding, 
   Variable, DataTable, PaleoData, ChronData, 
-  Resolution, Calibration, Interpretation, 
+  Resolution, Calibration, Interpretation, Change,
   Model, PaleoProxy, PaleoProxyGeneral, PaleoUnit,
   InterpretationVariable, InterpretationSeasonality,
-  PaleoVariable, SynonymEntry, SYNONYMS } from "lipdjs";
+  PaleoVariable, SynonymEntry, SYNONYMS, Compilation } from "lipdjs";
 
   import { getPublicationTitleLabel, getPublicationAuthorsLabel,
-    getPaleoDataLabel, getPaleoDataMeasurementTablesLabel,
+    getDataDetailsLabel,
     getDataTableLabel, getDataTableVariablesLabel,
-    getPaleoDataModeledByLabel, getPersonNameLabel,
-    getVariableNameLabel, getVariableDescriptionLabel
+    getPersonNameLabel,
+    getVariableNameLabel, getVariableDescriptionLabel,
+    getFundingGrantsLabel,
+    getFundingLabel,
+    getChangeLogLabel,
+    getChangeLogCuratorLabel,
+    getChangeLogEntryLabel
    } from "../utils/labels";
 
 export interface Schema {
@@ -25,6 +30,7 @@ export interface Schema {
 
 export interface SchemaField {
     type: 'string' | 'number' | 'boolean' | 'array' | 'object' | 'enum';
+    hidden?: boolean;
     label?: string;
     multiline?: boolean;
     rows?: number;
@@ -137,6 +143,7 @@ export const publicationSchema: Schema = {
         abstract: { type: 'string', label: 'Abstract' },  
         firstAuthor: {
             type: 'object',
+            hidden: true,
             label: 'First Author',
             schema: personSchema
         },  
@@ -175,10 +182,44 @@ export const publicationSchema: Schema = {
     class: Publication
 };
 
+export const changeLogEntrySchema: Schema = {
+  fields: {
+      name: { type: 'string', label: 'Name' },
+      notes: { 
+        type: 'array',
+        label: 'Notes',
+        items: {
+          type: 'string',
+          label: 'Note'
+        }
+      }
+  },
+  label: {
+    primary: getChangeLogEntryLabel
+  },
+  class: Change
+};
+
 export const changeLogSchema: Schema = {
     fields: {
-        changes: { type: 'string', label: 'Changes' },
-        notes: { type: 'string', label: 'Notes' }
+        contributor: {type: 'string', label: 'Curator'},
+        timestamp: {type: 'string', label: 'Timestamp'},
+        version: {type: 'string', label: 'Version'},
+        lastVersion: {type: 'string', label: 'Last Version'},
+        notes: {type: 'string', label: 'Notes'},
+        changes: { 
+          type: 'array', 
+          label: 'Changes',
+          items: {
+            type: 'object',
+            label: 'Change',
+            schema: changeLogEntrySchema
+          }
+        },
+    },
+    label: {
+      primary: getChangeLogLabel,
+      secondary: getChangeLogCuratorLabel
     },
     class: ChangeLog
 };
@@ -204,6 +245,10 @@ export const fundingSchema: Schema = {
             schema: personSchema
           }
         }
+    },
+    label: {
+      primary: getFundingLabel,
+      secondary: getFundingGrantsLabel
     },
     class: Funding
 };
@@ -274,6 +319,14 @@ export const resolutionSchema: Schema = {
     class: Resolution
 };
 
+export const compilationSchema: Schema = {
+    fields: {
+        name: { type: 'string', label: 'Name' },
+        version: { type: 'string', label: 'Version' },
+    },
+    class: Compilation
+};
+
 export const variableSchema: Schema = {
     fields: {
         name: { type: 'string', label: 'Name' },    
@@ -287,7 +340,11 @@ export const variableSchema: Schema = {
         columnNumber: { type: 'number', label: 'Column Number' },  
         description: { type: 'string', label: 'Description' },  
         notes: { type: 'string', label: 'Notes' },  
-        partOfCompilation: { type: 'string', label: 'Part of Compilation' },
+        partOfCompilation: { 
+          type: 'object', 
+          label: 'Part of Compilation',
+          schema: compilationSchema
+        },
         missingValue: { type: 'string', label: 'Missing Value' },  
         maxValue: { type: 'number', label: 'Max Value' },
         meanValue: { type: 'number', label: 'Mean Value' },
@@ -401,9 +458,9 @@ export const modelSchema: Schema = {
     class: Model
 };
 
-export const paleoDataSchema: Schema = {
+export const dataSchema: Schema = {
     fields: {
-        name: { type: 'string', label: 'Name' },
+        // name: { type: 'string', label: 'Name' },
         // Measurement Tables and modeledBy are handled in the PaleoDataEditor component
         measurementTables: {
           type: 'array',
@@ -424,32 +481,10 @@ export const paleoDataSchema: Schema = {
           }
         }
     },
+    label: {
+      secondary: getDataDetailsLabel
+    },    
     class: PaleoData
-};
-
-export const chronDataSchema: Schema = {
-  // Measurement Tables and modeledBy are handled in the ChronDataEditor component
-  fields: {
-      measurementTables: {
-          type: 'array',
-          label: 'Measurement Tables',
-          items: {
-                type: 'object',
-                label: 'Measurement Table',
-                schema: dataTableSchema
-          }
-      },
-      modeledBy: {
-        type: 'array',
-        label: 'Models',
-        items: {
-              type: 'object',
-              label: 'Model',
-              schema: modelSchema
-        }
-      }
-    },
-    class: ChronData
 };
 
 export const datasetSchema: Schema = {
@@ -474,11 +509,6 @@ export const datasetSchema: Schema = {
     spreadsheetLink: { type: 'string', label: 'Spreadsheet Link' },
     compilationNest: { type: 'string', label: 'Compilation Nest' },
     notes: { type: 'string', label: 'Notes' },
-    // changeLog: {
-    //   type: 'object',
-    //   label: 'Change Log',
-    //   schema: changeLogSchema
-    // },
     investigators: {
       type: 'array',
       label: 'Investigators',
@@ -514,35 +544,126 @@ export const datasetSchema: Schema = {
         label: 'Funding',
         schema: fundingSchema
       }
-    }
+    },
+    changeLogs: {
+      type: 'array',
+      hidden: true,
+      label: 'ChangeLog',
+      items: {
+        type: 'object',
+        label: 'ChangeLog Entry',
+        schema: changeLogSchema
+      }
+    },
+    publications: {
+      type: 'array',
+      hidden: true,
+      label: 'Publications',
+      items: {
+        type: 'object',
+        label: 'Publication',
+        schema: publicationSchema
+      }      
+    },
+    paleoData: {
+      type: 'array',
+      hidden: true,
+      label: 'PaleoData',
+      items: {
+        type: 'object',
+        label: 'PaleoData',
+        schema: dataSchema
+      }
+    },
+    chronData: {
+      type: 'array',
+      hidden: true,
+      label: 'ChronData',
+      items: {
+        type: 'object',
+        label: 'ChronData',
+        schema: dataSchema
+      }
+    }    
   },
   class: Dataset
 };
 
-// // Helper function to get schema for a class
-// export const getSchemaForClass = (className: string): Schema => {
-//   const schemas: Record<string, Schema> = {
-//     Dataset: datasetSchema,
-//     Publication: publicationSchema,
-//     Person: personSchema,
-//     Location: locationSchema,
-//     ArchiveType: archiveTypeSchema,
-//     ChangeLog: changeLogSchema,
-//     Funding: fundingSchema,
-//     Variable: variableSchema,
-//     DataTable: dataTableSchema,
-//     PaleoData: paleoDataSchema,
-//     ChronData: chronDataSchema,
-//     Resolution: resolutionSchema,
-//     Calibration: calibrationSchema,
-//     Interpretation: interpretationSchema,
-//     Model: modelSchema,
-//     PaleoProxy: proxySchema,
-//     PaleoProxyGeneral: proxyGeneralSchema,
-//     PaleoUnit: paleoUnitSchema,
-//     PaleoVariable: paleoVariableSchema,
-//     InterpretationVariable: interpretationVariableSchema,
-//     InterpretationSeasonality: seasonalitySchema
-//   };
-//   return schemas[className] || {};
-// }; 
+
+
+// Build a complete map of paths to schemas
+const schemaPathMap: Map<string, Schema | SchemaField> = new Map();
+
+// Function to recursively build the schema path map
+const buildSchemaPathMap = (
+    schema: Schema | undefined,
+    fieldSchema: SchemaField | undefined,
+    currentPath: string = 'dataset'
+) => {
+    // Add the current schema to the map
+    if (schema) {
+        schemaPathMap.set(currentPath, schema);
+
+        // Process fields in the schema
+        if (schema.fields) {
+            Object.entries(schema.fields).forEach(([fieldName, fieldDef]) => {
+                const fieldPath = `${currentPath}.${fieldName}`;
+                schemaPathMap.set(fieldPath, fieldDef);
+
+                // If field is an object with its own schema, recursively process it
+                if (fieldDef.type === 'object' && fieldDef.schema) {
+                    buildSchemaPathMap(fieldDef.schema, fieldDef, fieldPath);
+                }
+                // If field is an array with item schema, process the array items schema
+                else if (fieldDef.type === 'array' && fieldDef.items) {
+                    // Map the array itself
+                    schemaPathMap.set(fieldPath, fieldDef);
+                    
+                    // The schema for individual items in the array (with wildcard index)
+                    const itemPath = `${fieldPath}.*`;
+                    schemaPathMap.set(itemPath, fieldDef.items);
+                    
+                    // If array items have a schema, recursively process it
+                    if (fieldDef.items.schema) {
+                        buildSchemaPathMap(fieldDef.items.schema, fieldDef.items, itemPath);
+                    }
+                }
+            });
+        }
+    }
+    // If we're starting with a field schema instead of a full schema
+    else if (fieldSchema) {
+        schemaPathMap.set(currentPath, fieldSchema);
+        
+        if (fieldSchema.type === 'object' && fieldSchema.schema) {
+            buildSchemaPathMap(fieldSchema.schema, undefined, currentPath);
+        }
+        else if (fieldSchema.type === 'array' && fieldSchema.items) {
+            const itemPath = `${currentPath}.*`;
+            schemaPathMap.set(itemPath, fieldSchema.items);
+            
+            if (fieldSchema.items.schema) {
+                buildSchemaPathMap(fieldSchema.items.schema, fieldSchema.items, itemPath);
+            }
+        }
+    }
+};
+
+// Initialize the schema path map
+buildSchemaPathMap(datasetSchema, undefined);
+
+// Helper function to find the schema for a given path
+export const getSchemaForPath = (path: string): Schema | SchemaField | null => {
+  // Try exact match first
+  if (schemaPathMap.has(path)) {
+      return schemaPathMap.get(path) as Schema | SchemaField;
+  }
+
+  // Check for wildcard path
+  let wildcardPath = path.replace(/\.\d+/g, '.*');
+  if (schemaPathMap.has(wildcardPath)) {
+      return schemaPathMap.get(wildcardPath) as Schema | SchemaField;
+  }
+  
+  return null;
+};

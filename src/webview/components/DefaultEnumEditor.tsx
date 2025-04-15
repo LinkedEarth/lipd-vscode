@@ -9,19 +9,16 @@ import Select, { SelectChangeEvent } from '@mui/material/Select';
 import InputLabel from '@mui/material/InputLabel';
 import FormControl from '@mui/material/FormControl';
 import { EditorProps } from '../router';
-import { SchemaField } from '../schemas';
-import { getValueFromPath } from '../../utils/utils';
+import { getValueFromPath, formVariant } from '../../utils/utils';
 import { useLiPDStore } from '../store';
 
-interface EnumEditorProps extends EditorProps {
-    fieldSchema: SchemaField;
-}
-
-export const DefaultEnumEditor: React.FC<EnumEditorProps> = ({ path, params, onUpdate, schema, fieldSchema }) => {
-    
-    const dataset = useLiPDStore(state => state.dataset);
+export const DefaultEnumEditor: React.FC<EditorProps> = ({ path, params, onUpdate, schema, fieldSchema }) => {
+    const dataset = useLiPDStore((state: any) => state.dataset);
     const value = getValueFromPath(dataset, path);
     const enumValue = value as SynonymEntry;
+    if (!fieldSchema) {
+        return null;
+    }
             
     // Extract the value regardless of format
     let displayValue = '';
@@ -32,22 +29,14 @@ export const DefaultEnumEditor: React.FC<EnumEditorProps> = ({ path, params, onU
     }
 
     return (
-        <Box sx={{ mb: 1, width: '100%' }}>
-        <FormControl fullWidth sx={{ width: '100%' }}>
+        <FormControl variant={formVariant} sx={{ mt: 2, width: '100%' }}>
             <InputLabel>{fieldSchema.label}</InputLabel>
             <Select
                 label={fieldSchema.label}
                 value={idValue}
                 size="small"
                 margin="dense"
-                sx={{
-                    '.MuiSelect-select': {
-                        display: 'flex',
-                        alignItems: 'center',
-                        paddingY: '10px',
-                        minHeight: '1.4375em'
-                    }
-                }}
+                variant={formVariant}
                 onChange={(event: SelectChangeEvent<string>) => {
                     let newValue = event.target.value;
                     
@@ -64,12 +53,11 @@ export const DefaultEnumEditor: React.FC<EnumEditorProps> = ({ path, params, onU
                 }}
             >
                 {Object.values(fieldSchema.schema?.enum || {}).map((option: SynonymEntry) => (
-                    <MenuItem key={option.id} value={option.id}>
+                    <MenuItem value={option.id}>
                         {option.label}
                     </MenuItem>
                 ))}
             </Select>
         </FormControl>
-        </Box>
     );
 };

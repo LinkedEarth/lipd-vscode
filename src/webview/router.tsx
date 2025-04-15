@@ -1,51 +1,70 @@
 import React, { useContext, useCallback, useMemo } from 'react';
 import { useLiPDStore } from './store';
 import { DataTableEditor } from './components/DataTableEditor';
-import { chronDataSchema, datasetSchema, dataTableSchema, modelSchema, paleoDataSchema, publicationSchema, Schema, variableSchema } from './schemas';
+import { datasetSchema, dataTableSchema, dataSchema, modelSchema, publicationSchema, Schema, variableSchema, fundingSchema, interpretationSchema, calibrationSchema, changeLogSchema, changeLogEntrySchema, SchemaField, personSchema } from './schemas';
 import { DefaultListEditor } from './components/DefaultListEditor';
 import { DefaultEditor } from './components/DefaultEditor';
+import { Box, CircularProgress, Typography } from '@mui/material';
+import { Dataset } from 'lipdjs';
+import { 
+  getPersonNameLabel, 
+  getPublicationTitleLabel, 
+  getDataTableLabel, 
+  getVariableNameLabel,
+  getFundingLabel
+} from '../utils/labels';
 
 // Define route types
 interface Route {
   path: string;
   component: React.ComponentType<any>;
   schema?: Schema;
-  label: string | ((params: RouteParams) => string);
   getParams?: (path: string) => RouteParams | null;
-  title?: string;
+  label: string | ((params: RouteParams) => string);  
+  title?: string | ((params: RouteParams) => string);
+  itemLabel?: (item: any) => string;
 }
 
-interface RouteParams {
-  [key: string]: string | number;
+// Define route parameters
+export interface RouteParams {
+  dataType?: string;
+  index?: number;
+  tableIndex?: number;
+  varIndex?: number;
+  interpretationIndex?: number;
+  calibrationIndex?: number;
+  publicationIndex?: number;
+  fundingIndex?: number;
+  modelIndex?: number;
+  tableType?: string;
+  changeLogIndex?: number;
+  changeLogEntryIndex?: number;
+  personIndex?: number;
+  authorIndex?: number;
+  investigatorIndex?: number;
 }
 
 // Define the router context
 interface RouterContextType {
   currentPath: string;
   navigateTo: (path: string) => void;
+  goBack: () => void;
   breadcrumbs: { label: string; path: string }[];
+  canGoBack: boolean;
 }
 
 // Editor props interface
 export interface EditorProps {
+  dataset: Dataset;
   path: string;
   title?: string;
-  params?: {
-      index?: number;
-      paleoIndex?: number;
-      chronIndex?: number;
-      publicationIndex?: number;
-      tableIndex?: number;
-      modelIndex?: number;
-      summaryTableIndex?: number;
-      ensembleTableIndex?: number;
-      distributionTableIndex?: number;
-      varIndex?: number;
-  };
+  params?: RouteParams;
   onUpdate: (path: string, updatedObject: any) => void;
   schema?: Schema;
+  fieldSchema?: SchemaField;
   columns?: number;
   dense?: boolean;
+  useFieldset?: boolean;
 }
 
 const RouterContext = React.createContext<RouterContextType | null>(null);
@@ -57,56 +76,37 @@ const routes: Route[] = [
     component: DefaultEditor,
     label: 'Dataset',
     title: 'Dataset',
+    itemLabel: dataset => dataset.name || 'Dataset',
     schema: datasetSchema
   },
+  // PaleoData or ChronData
   {
-    path: 'dataset/paleoData',
+    path: 'dataset/:dataType',
     component: DefaultListEditor,
-    label: 'PaleoData',
-    title: 'PaleoData',
+    label: params => `${(params.dataType || ' ').charAt(0).toUpperCase() + params.dataType?.slice(1)}`,
+    title: params => `${(params.dataType || ' ').charAt(0).toUpperCase() + params.dataType?.slice(1)}`,
     getParams: (path) => {
-      const match = path.match(/^dataset\.paleoData$/);
-      return match ? {} : null;
+      const match = path.match(/^dataset\.(paleoData|chronData)$/);
+      return match ? { dataType: match[1] } : null;
     },
-    schema: paleoDataSchema
+    schema: dataSchema
   },
+  // PaleoData or ChronData
   {
-    path: 'dataset/paleoData/:index',
+    path: 'dataset/:dataType/:index',
     component: DefaultEditor,
-    title: 'PaleoData',
-    label: params => `PaleoData ${Number(params.paleoIndex) + 1}`,
+    title: params => `${(params.dataType || ' ').charAt(0).toUpperCase() + params.dataType?.slice(1)} ${Number(params.index) + 1}`,
+    label: params => `${(params.dataType || ' ').charAt(0).toUpperCase() + params.dataType?.slice(1)} ${Number(params.index) + 1}`,
     getParams: (path) => {
-      const match = path.match(/^dataset\.paleoData\.(\d+)$/);
+      const match = path.match(/^dataset\.(paleoData|chronData)\.(\d+)$/);
       return match ? { 
-        paleoIndex: parseInt(match[1]) 
+        dataType: match[1],
+        index: parseInt(match[2]) 
       } : null;
     },
-    schema: paleoDataSchema
+    schema: dataSchema
   },
-  {
-    path: 'dataset/chronData',
-    component: DefaultListEditor,
-    title: 'ChronData',
-    label: 'ChronData',
-    schema: chronDataSchema,
-    getParams: (path) => {
-      const match = path.match(/^dataset\.chronData$/);
-      return match ? {} : null;
-    },
-  },
-  {
-    path: 'dataset/chronData/:index',
-    component: DefaultEditor,
-    title: 'ChronData',
-    label: params => `ChronData ${Number(params.chronIndex) + 1}`,
-    getParams: (path) => {
-      const match = path.match(/^dataset\.chronData\.(\d+)$/);
-      return match ? { 
-        chronIndex: parseInt(match[1]) 
-      } : null;
-    },
-    schema: chronDataSchema
-  },
+  // Publications List
   {
     path: 'dataset/publications',
     component: DefaultListEditor,
@@ -118,11 +118,13 @@ const routes: Route[] = [
       return match ? {} : null;
     },
   },
+  // Publication
   {
     path: 'dataset/publications/:index',
     component: DefaultEditor,
     title: 'Publication',
     label: params => `Publication ${Number(params.publicationIndex) + 1}`,
+    itemLabel: publication => getPublicationTitleLabel(publication),
     getParams: (path) => {
       const match = path.match(/^dataset\.publications\.(\d+)$/);
       return match ? { 
@@ -131,291 +133,401 @@ const routes: Route[] = [
     },
     schema: publicationSchema
   },
+  // ChangeLog List
   {
-    path: 'dataset/paleoData/:paleoIndex/measurementTables/:tableIndex',
+    path: 'dataset/changeLogs',
+    component: DefaultListEditor,
+    label: 'ChangeLogs',
+    title: 'ChangeLogs',
+    schema: changeLogSchema,
+    getParams: (path) => {
+      const match = path.match(/^dataset\.changeLogs$/);
+      return match ? {} : null;
+    },
+  },
+  // ChangeLog
+  {
+    path: 'dataset/changeLogs/:index',
+    component: DefaultEditor,
+    title: 'ChangeLog',
+    label: params => `ChangeLog ${Number(params.changeLogIndex) + 1}`,
+    getParams: (path) => {
+      const match = path.match(/^dataset\.changeLogs\.(\d+)$/);
+      return match ? { 
+        changeLogIndex: parseInt(match[1]) 
+      } : null;
+    },
+    schema: changeLogSchema
+  },
+  // ChangeLogEntry
+  {
+    path: 'dataset/changeLogs/:index/changes/:changeLogEntryIndex',
+    component: DefaultEditor,
+    title: 'ChangeLogEntry',
+    label: params => `ChangeLogEntry ${Number(params.changeLogEntryIndex) + 1}`,
+    getParams: (path) => {
+      const match = path.match(/^dataset\.changeLogs\.(\d+)\.changes\.(\d+)$/);
+      return match ? { 
+        changeLogIndex: parseInt(match[1]),
+        changeLogEntryIndex: parseInt(match[2])
+      } : null;
+    },
+    schema: changeLogEntrySchema
+  },  
+  // Fundings List
+  {
+    path: 'dataset/fundings',
+    component: DefaultListEditor,
+    label: 'Fundings',
+    title: 'Fundings',
+    schema: fundingSchema,
+    getParams: (path) => {
+      const match = path.match(/^dataset\.fundings$/);
+      return match ? {} : null;
+    },
+  },
+  // Funding
+  {
+    path: 'dataset/fundings/:index',
+    component: DefaultEditor,
+    title: 'Funding',
+    label: params => `Funding ${Number(params.fundingIndex) + 1}`,
+    itemLabel: funding => getFundingLabel(funding),
+    getParams: (path) => {
+      const match = path.match(/^dataset\.fundings\.(\d+)$/);
+      return match ? { 
+        fundingIndex: parseInt(match[1]) 
+      } : null;
+    },
+    schema: fundingSchema
+  },  
+  // PaleoData or ChronData measurement Tables
+  {
+    path: 'dataset/:dataType/:index/measurementTables/:tableIndex',
     component: DataTableEditor,
     title: 'Data Table',
     label: params => `Measurement Table ${Number(params.tableIndex) + 1}`,
+    itemLabel: table => getDataTableLabel(table),
     getParams: (path) => {
-      const match = path.match(/^dataset\.paleoData\.(\d+)\.measurementTables\.(\d+)$/);
+      const match = path.match(/^dataset\.(paleoData|chronData)\.(\d+)\.measurementTables\.(\d+)$/);
       return match ? { 
-        paleoIndex: parseInt(match[1]), 
-        tableIndex: parseInt(match[2]) 
+        dataType: match[1],
+        index: parseInt(match[2]), 
+        tableIndex: parseInt(match[3]) 
       } : null;
     },
     schema: dataTableSchema
   },
+  // PaleoData or ChronData measurement Tables variables
   {
-    path: 'dataset/chronData/:chronIndex/measurementTables/:tableIndex',
-    component: DataTableEditor,
-    title: 'Data Table',
-    label: params => `Measurement Table ${Number(params.tableIndex) + 1}`,
+    path: 'dataset/:dataType/:index/measurementTables/:tableIndex/variables/:varIndex',
+    component: DefaultEditor,
+    title: 'Variable',
+    label: params => `Variable ${Number(params.varIndex) + 1}`,
+    itemLabel: variable => getVariableNameLabel(variable),
     getParams: (path) => {
-      const match = path.match(/^dataset\.chronData\.(\d+)\.measurementTables\.(\d+)$/);
+      const match = path.match(/^dataset\.(paleoData|chronData)\.(\d+)\.measurementTables\.(\d+)\.variables\.(\d+)$/);
       return match ? { 
-        chronIndex: parseInt(match[1]), 
-        tableIndex: parseInt(match[2]) 
+        dataType: match[1],
+        index: parseInt(match[2]), 
+        tableIndex: parseInt(match[3]),
+        varIndex: parseInt(match[4])
       } : null;
     },
-    schema: dataTableSchema
+    schema: variableSchema
   },
+  // PaleoData or ChronData measurement Tables variables interpretations
   {
-    path: 'dataset/paleoData/:paleoIndex/modeledBy/:modelIndex',
+    path: 'dataset/:dataType/:index/measurementTables/:tableIndex/variables/:varIndex/interpretations/:interpretationIndex',
+    component: DefaultEditor,
+    title: 'Interpretation',
+    label: params => `Interpretation ${Number(params.interpretationIndex) + 1}`,
+    getParams: (path) => {
+      const match = path.match(/^dataset\.(paleoData|chronData)\.(\d+)\.measurementTables\.(\d+)\.variables\.(\d+)\.interpretations\.(\d+)$/);
+      return match ? { 
+        dataType: match[1],
+        index: parseInt(match[2]), 
+        tableIndex: parseInt(match[3]),
+        varIndex: parseInt(match[4]),
+        interpretationIndex: parseInt(match[5])
+      } : null;
+    },
+    schema: interpretationSchema
+  }, 
+  // PaleoData or ChronData measurement Tables variables calibrations
+  {
+    path: 'dataset/:dataType/:index/measurementTables/:tableIndex/variables/:varIndex/calibrations/:calibrationIndex',
+    component: DefaultEditor,
+    title: 'Calibration',
+    label: params => `Calibration ${Number(params.calibrationIndex) + 1}`,
+    getParams: (path) => {
+      const match = path.match(/^dataset\.(paleoData|chronData)\.(\d+)\.measurementTables\.(\d+)\.variables\.(\d+)\.calibratedVias\.(\d+)$/);
+      return match ? { 
+        dataType: match[1],
+        index: parseInt(match[2]), 
+        tableIndex: parseInt(match[3]),
+        varIndex: parseInt(match[4]),
+        calibrationIndex: parseInt(match[5])
+      } : null;
+    },
+    schema: calibrationSchema
+  },    
+  // PaleoData or ChronData models
+  {
+    path: 'dataset/:dataType/:index/modeledBy/:modelIndex',
     component: DefaultEditor,
     title: 'Model',
     label: params => `Model ${Number(params.modelIndex) + 1}`,
     getParams: (path) => {
-      const match = path.match(/^dataset\.paleoData\.(\d+)\.modeledBy\.(\d+)$/);
+      const match = path.match(/^dataset\.(paleoData|chronData)\.(\d+)\.modeledBy\.(\d+)$/);
       return match ? { 
-        paleoIndex: parseInt(match[1]), 
-        modelIndex: parseInt(match[2]) 
+        dataType: match[1],
+        index: parseInt(match[2]), 
+        modelIndex: parseInt(match[3]) 
       } : null;
     },
     schema: modelSchema
-  },
+  },  
+  // PaleoData or ChronData modeledBy Tables
   {
-    path: 'dataset/chronData/:chronIndex/modeledBy/:modelIndex',
-    component: DefaultEditor,
-    title: 'Model',
-    label: params => `Model ${Number(params.modelIndex) + 1}`,
-    getParams: (path) => {
-      const match = path.match(/^dataset\.chronData\.(\d+)\.modeledBy\.(\d+)$/);
-      return match ? { 
-        chronIndex: parseInt(match[1]), 
-        modelIndex: parseInt(match[2]) 
-      } : null;
-    },
-    schema: modelSchema
-  },
-  {
-    path: 'dataset/paleoData/:paleoIndex/measurementTables/:tableIndex/variables/:varIndex',
-    component: DefaultEditor,
-    title: 'Variable',
-    label: params => `Variable ${Number(params.varIndex) + 1}`,
-    getParams: (path) => {
-      const match = path.match(/^dataset\.paleoData\.(\d+)\.measurementTables\.(\d+)\.variables\.(\d+)$/);
-      return match ? { 
-        paleoIndex: parseInt(match[1]), 
-        tableIndex: parseInt(match[2]),
-        varIndex: parseInt(match[3])
-      } : null;
-    },
-    schema: variableSchema
-  },
-  {
-    path: 'dataset/chronData/:chronIndex/measurementTables/:tableIndex/variables/:varIndex',
-    component: DefaultEditor,
-    title: 'Variable',
-    label: params => `Variable ${Number(params.varIndex) + 1}`,
-    getParams: (path) => {
-      const match = path.match(/^dataset\.chronData\.(\d+)\.measurementTables\.(\d+)\.variables\.(\d+)$/);
-      return match ? { 
-        chronIndex: parseInt(match[1]), 
-        tableIndex: parseInt(match[2]),
-        varIndex: parseInt(match[3])
-      } : null;
-    },
-    schema: variableSchema
-  },
-
-  // PaleoData modeledBy summary Tables
-  {
-    path: 'dataset/paleoData/:paleoIndex/modeledBy/:modelIndex/summaryTables/:summaryTableIndex',
+    path: 'dataset/:dataType/:index/modeledBy/:modelIndex/:tableType/:tableIndex',
     component: DataTableEditor,
     title: 'Data Table',
-    label: params => `Summary Table ${Number(params.summaryTableIndex) + 1}`,
+    label: params => `Summary Table ${Number(params.tableIndex) + 1}`,
     getParams: (path) => {
-      const match = path.match(/^dataset\.paleoData\.(\d+)\.modeledBy\.(\d+)\.summaryTables\.(\d+)$/);
+      const match = path.match(/^dataset\.(paleoData|chronData)\.(\d+)\.modeledBy\.(\d+)\.(summaryTables|ensembleTables|distributionTables)\.(\d+)$/);
       return match ? { 
-        paleoIndex: parseInt(match[1]), 
-        modelIndex: parseInt(match[2]),
-        summaryTableIndex: parseInt(match[3]) 
+        dataType: match[1],
+        index: parseInt(match[2]), 
+        modelIndex: parseInt(match[3]),
+        tableType: match[4],
+        tableIndex: parseInt(match[5]) 
       } : null;
     },
     schema: dataTableSchema
   }, 
-  // PaleoData modeledBy summary Tables variables
+  // ChronData or PaleoData modeledBy Tables variables
   {
-    path: 'dataset/paleoData/:paleoIndex/modeledBy/:modelIndex/summaryTables/:summaryTableIndex/variables/:varIndex',
+    path: 'dataset/:dataType/:index/modeledBy/:modelIndex/:tableType/:tableIndex/variables/:varIndex',
     component: DefaultEditor,
     title: 'Variable',
     label: params => `Variable ${Number(params.varIndex) + 1}`,
     getParams: (path) => {
-      const match = path.match(/^dataset\.chronData\.(\d+)\.modeledBy\.(\d+)\.summaryTables\.(\d+)\.variables\.(\d+)$/);
+      const match = path.match(/^dataset\.(paleoData|chronData)\.(\d+)\.modeledBy\.(\d+)\.(summaryTables|ensembleTables|distributionTables)\.(\d+)\.variables\.(\d+)$/);
       return match ? { 
-        chronIndex: parseInt(match[1]), 
-        modelIndex: parseInt(match[2]),
-        summaryTableIndex: parseInt(match[3]),
-        varIndex: parseInt(match[4])
+        dataType: match[1],
+        index: parseInt(match[2]), 
+        modelIndex: parseInt(match[3]),
+        tableType: match[4],
+        tableIndex: parseInt(match[5]),
+        varIndex: parseInt(match[6])
       } : null;
     },
     schema: variableSchema
   },
-  // ChronData modeledBy summary Tables
+  // PaleoData or ChronData modeledBy Tables variables interpretations
   {
-    path: 'dataset/chronData/:chronIndex/modeledBy/:modelIndex/summaryTables/:summaryTableIndex',
-    component: DataTableEditor,
-    title: 'Data Table',
-    label: params => `Summary Table ${Number(params.summaryTableIndex) + 1}`,
+    path: 'dataset/:dataType/:index/modeledBy/:modelIndex/:tableType/:tableIndex/variables/:varIndex/interpretations/:interpretationIndex',
+    component: DefaultEditor,
+    title: 'Interpretation',
+    label: params => `Interpretation ${Number(params.interpretationIndex) + 1}`,
     getParams: (path) => {
-      const match = path.match(/^dataset\.chronData\.(\d+)\.modeledBy\.(\d+)\.summaryTables\.(\d+)$/);
+      const match = path.match(/^dataset\.(paleoData|chronData)\.(\d+)\.modeledBy\.(\d+)\.(summaryTables|ensembleTables|distributionTables)\.(\d+)\.variables\.(\d+)\.interpretations\.(\d+)$/);
       return match ? { 
-        chronIndex: parseInt(match[1]), 
-        modelIndex: parseInt(match[2]),
-        summaryTableIndex: parseInt(match[3]) 
+        dataType: match[1],
+        index: parseInt(match[2]), 
+        modelIndex: parseInt(match[3]),
+        tableType: match[4],
+        tableIndex: parseInt(match[5]),
+        varIndex: parseInt(match[6]),
+        interpretationIndex: parseInt(match[7])
       } : null;
     },
-    schema: dataTableSchema
+    schema: interpretationSchema
   }, 
-  // ChronData modeledBy summary Tables variables
+  // PaleoData or ChronData modeledBy Tables variables calibrations
   {
-    path: 'dataset/chronData/:chronIndex/modeledBy/:modelIndex/summaryTables/:summaryTableIndex/variables/:varIndex',
+    path: 'dataset/:dataType/:index/modeledBy/:modelIndex/:tableType/:tableIndex/variables/:varIndex/calibrations/:calibrationIndex',
     component: DefaultEditor,
-    title: 'Variable',
-    label: params => `Variable ${Number(params.varIndex) + 1}`,
+    title: 'Calibration',
+    label: params => `Calibration ${Number(params.calibrationIndex) + 1}`,
     getParams: (path) => {
-      const match = path.match(/^dataset\.chronData\.(\d+)\.modeledBy\.(\d+)\.summaryTables\.(\d+)\.variables\.(\d+)$/);
+      const match = path.match(/^dataset\.(paleoData|chronData)\.(\d+)\.modeledBy\.(\d+)\.(summaryTables|ensembleTables|distributionTables)\.(\d+)\.variables\.(\d+)\.calibratedVias\.(\d+)$/);
       return match ? { 
-        chronIndex: parseInt(match[1]), 
-        modelIndex: parseInt(match[2]),
-        summaryTableIndex: parseInt(match[3]),
-        varIndex: parseInt(match[4])
+        dataType: match[1],
+        index: parseInt(match[2]), 
+        modelIndex: parseInt(match[3]),
+        tableType: match[4],
+        tableIndex: parseInt(match[5]),
+        varIndex: parseInt(match[6]),
+        calibrationIndex: parseInt(match[7])
       } : null;
     },
-    schema: variableSchema
+    schema: calibrationSchema
+  },     
+  // ===== PERSON ROUTES =====
+  
+  // Dataset Investigators List
+  {
+    path: 'dataset/investigators',
+    component: DefaultListEditor,
+    label: 'Investigators',
+    title: 'Investigators',
+    schema: personSchema,
+    getParams: (path) => {
+      const match = path.match(/^dataset\.investigators$/);
+      return match ? {} : null;
+    },
   },
-  // PaleoData modeledBy ensemble Tables
+  // Dataset Investigator
   {
-    path: 'dataset/paleoData/:paleoIndex/modeledBy/:modelIndex/ensembleTables/:ensembleTableIndex',
-    component: DataTableEditor,
-    title: 'Data Table',
-    label: params => `Ensemble Table ${Number(params.ensembleTableIndex) + 1}`,
-    getParams: (path) => {
-      const match = path.match(/^dataset\.paleoData\.(\d+)\.modeledBy\.(\d+)\.ensembleTables\.(\d+)$/);
-      return match ? { 
-        paleoIndex: parseInt(match[1]), 
-        modelIndex: parseInt(match[2]), 
-        ensembleTableIndex: parseInt(match[3]) 
-      } : null;
-    },
-    schema: dataTableSchema
-  },    
-  // PaleoData modeledBy ensemble Tables variables
-  {
-    path: 'dataset/paleoData/:paleoIndex/modeledBy/:modelIndex/ensembleTables/:ensembleTableIndex/variables/:varIndex',
+    path: 'dataset/investigators/:index',
     component: DefaultEditor,
-    title: 'Variable',
-    label: params => `Variable ${Number(params.varIndex) + 1}`,
+    title: 'Investigator',
+    label: params => `Investigator ${Number(params.personIndex) + 1}`,
+    itemLabel: person => getPersonNameLabel(person),
     getParams: (path) => {
-      const match = path.match(/^dataset\.paleoData\.(\d+)\.modeledBy\.(\d+)\.ensembleTables\.(\d+)\.variables\.(\d+)$/);
+      const match = path.match(/^dataset\.investigators\.(\d+)$/);
       return match ? { 
-        paleoIndex: parseInt(match[1]), 
-        modelIndex: parseInt(match[2]),
-        ensembleTableIndex: parseInt(match[3]),
-        varIndex: parseInt(match[4])
+        personIndex: parseInt(match[1]) 
       } : null;
     },
-    schema: variableSchema
-  },  
-  // chronData modeledBy ensemble Tables
+    schema: personSchema
+  },
+  
+  // Dataset Creators List
   {
-    path: 'dataset/chronData/:chronIndex/modeledBy/:modelIndex/ensembleTables/:ensembleTableIndex',
-    component: DataTableEditor,
-    title: 'Data Table',
-    label: params => `Ensemble Table ${Number(params.ensembleTableIndex) + 1}`,
+    path: 'dataset/creators',
+    component: DefaultListEditor,
+    label: 'Creators',
+    title: 'Creators',
+    schema: personSchema,
     getParams: (path) => {
-      const match = path.match(/^dataset\.chronData\.(\d+)\.modeledBy\.(\d+)\.ensembleTables\.(\d+)$/);
-      return match ? { 
-        chronIndex: parseInt(match[1]), 
-        modelIndex: parseInt(match[2]), 
-        ensembleTableIndex: parseInt(match[3]) 
-      } : null;
+      const match = path.match(/^dataset\.creators$/);
+      return match ? {} : null;
     },
-    schema: dataTableSchema
-  },    
-  // chronData modeledBy ensemble Tables variables
+  },
+  // Dataset Creator
   {
-    path: 'dataset/chronData/:chronIndex/modeledBy/:modelIndex/ensembleTables/:ensembleTableIndex/variables/:varIndex',
+    path: 'dataset/creators/:index',
     component: DefaultEditor,
-    title: 'Variable',
-    label: params => `Variable ${Number(params.varIndex) + 1}`,
+    title: 'Creator',
+    label: params => `Creator ${Number(params.personIndex) + 1}`,
+    itemLabel: person => getPersonNameLabel(person),
     getParams: (path) => {
-      const match = path.match(/^dataset\.chronData\.(\d+)\.modeledBy\.(\d+)\.ensembleTables\.(\d+)\.variables\.(\d+)$/);
+      const match = path.match(/^dataset\.creators\.(\d+)$/);
       return match ? { 
-        chronIndex: parseInt(match[1]), 
-        modelIndex: parseInt(match[2]),
-        ensembleTableIndex: parseInt(match[3]),
-        varIndex: parseInt(match[4])
+        personIndex: parseInt(match[1]) 
       } : null;
     },
-    schema: variableSchema
-  },   
-  // PaleoData modeledBy distribution Tables
+    schema: personSchema
+  },
+  
+  // Dataset Contributors List
   {
-    path: 'dataset/paleoData/:paleoIndex/modeledBy/:modelIndex/distributionTables/:distributionTableIndex',
-    component: DataTableEditor,
-    title: 'Data Table',
-    label: params => `Distribution Table ${Number(params.distributionTableIndex) + 1}`,
+    path: 'dataset/contributors',
+    component: DefaultListEditor,
+    label: 'Contributors',
+    title: 'Contributors',
+    schema: personSchema,
     getParams: (path) => {
-      const match = path.match(/^dataset\.paleoData\.(\d+)\.modeledBy\.(\d+)\.distributionTables\.(\d+)$/);
-      return match ? { 
-        paleoIndex: parseInt(match[1]), 
-        modelIndex: parseInt(match[2]), 
-        distributionTableIndex: parseInt(match[3]) 
-      } : null;
+      const match = path.match(/^dataset\.contributors$/);
+      return match ? {} : null;
     },
-    schema: dataTableSchema
-  },  
-  // PaleoData modeledBy distribution Tables variables
+  },
+  // Dataset Contributor
   {
-    path: 'dataset/paleoData/:paleoIndex/modeledBy/:modelIndex/distributionTables/:distributionTableIndex/variables/:varIndex',
+    path: 'dataset/contributors/:index',
     component: DefaultEditor,
-    title: 'Variable',
-    label: params => `Variable ${Number(params.varIndex) + 1}`,
+    title: 'Contributor',
+    label: params => `Contributor ${Number(params.personIndex) + 1}`,
+    itemLabel: person => getPersonNameLabel(person),
     getParams: (path) => {
-      const match = path.match(/^dataset\.paleoData\.(\d+)\.modeledBy\.(\d+)\.distributionTables\.(\d+)\.variables\.(\d+)$/);
+      const match = path.match(/^dataset\.contributors\.(\d+)$/);
       return match ? { 
-        paleoIndex: parseInt(match[1]), 
-        modelIndex: parseInt(match[2]),
-        distributionTableIndex: parseInt(match[3]),
-        varIndex: parseInt(match[4])
+        personIndex: parseInt(match[1]) 
       } : null;
     },
-    schema: variableSchema
-  },  
-  // chronData modeledBy distribution Tables
+    schema: personSchema
+  },
+  
+  // Publication Authors List
   {
-    path: 'dataset/chronData/:chronIndex/modeledBy/:modelIndex/distributionTables/:distributionTableIndex',
-    component: DataTableEditor,
-    title: 'Data Table',
-    label: params => `Distribution Table ${Number(params.distributionTableIndex) + 1}`,
+    path: 'dataset/publications/:publicationIndex/authors',
+    component: DefaultListEditor,
+    label: 'Authors',
+    title: 'Authors',
+    schema: personSchema,
     getParams: (path) => {
-      const match = path.match(/^dataset\.chronData\.(\d+)\.modeledBy\.(\d+)\.distributionTables\.(\d+)$/);
+      const match = path.match(/^dataset\.publications\.(\d+)\.authors$/);
       return match ? { 
-        chronIndex: parseInt(match[1]), 
-        modelIndex: parseInt(match[2]), 
-        distributionTableIndex: parseInt(match[3]) 
+        publicationIndex: parseInt(match[1]) 
       } : null;
     },
-    schema: dataTableSchema
-  },  
-  // chronData modeledBy distribution Tables variables
+  },
+  // Publication Author
   {
-    path: 'dataset/chronData/:chronIndex/modeledBy/:modelIndex/distributionTables/:distributionTableIndex/variables/:varIndex',
+    path: 'dataset/publications/:publicationIndex/authors/:authorIndex',
     component: DefaultEditor,
-    title: 'Variable',
-    label: params => `Variable ${Number(params.varIndex) + 1}`,
+    title: 'Author',
+    label: params => `Author ${Number(params.authorIndex) + 1}`,
+    itemLabel: person => getPersonNameLabel(person),
     getParams: (path) => {
-      const match = path.match(/^dataset\.chronData\.(\d+)\.modeledBy\.(\d+)\.distributionTables\.(\d+)\.variables\.(\d+)$/);
+      const match = path.match(/^dataset\.publications\.(\d+)\.authors\.(\d+)$/);
       return match ? { 
-        chronIndex: parseInt(match[1]), 
-        modelIndex: parseInt(match[2]),
-        distributionTableIndex: parseInt(match[3]),
-        varIndex: parseInt(match[4])
+        publicationIndex: parseInt(match[1]),
+        authorIndex: parseInt(match[2])
       } : null;
     },
-    schema: variableSchema
-  },      
+    schema: personSchema
+  },
+  
+  // Publication First Author
+  {
+    path: 'dataset/publications/:publicationIndex/firstAuthor',
+    component: DefaultEditor,
+    title: 'First Author',
+    label: 'First Author',
+    itemLabel: person => getPersonNameLabel(person),
+    getParams: (path) => {
+      const match = path.match(/^dataset\.publications\.(\d+)\.firstAuthor$/);
+      return match ? { 
+        publicationIndex: parseInt(match[1])
+      } : null;
+    },
+    schema: personSchema
+  },
+  
+  // Funding Investigators List
+  {
+    path: 'dataset/fundings/:fundingIndex/investigators',
+    component: DefaultListEditor,
+    label: 'Investigators',
+    title: 'Investigators',
+    schema: personSchema,
+    getParams: (path) => {
+      const match = path.match(/^dataset\.fundings\.(\d+)\.investigators$/);
+      return match ? { 
+        fundingIndex: parseInt(match[1]) 
+      } : null;
+    },
+  },
+  // Funding Investigator
+  {
+    path: 'dataset/fundings/:fundingIndex/investigators/:investigatorIndex',
+    component: DefaultEditor,
+    title: 'Investigator',
+    label: params => `Investigator ${Number(params.investigatorIndex) + 1}`,
+    itemLabel: person => getPersonNameLabel(person),
+    getParams: (path) => {
+      const match = path.match(/^dataset\.fundings\.(\d+)\.investigators\.(\d+)$/);
+      return match ? { 
+        fundingIndex: parseInt(match[1]),
+        investigatorIndex: parseInt(match[2])
+      } : null;
+    },
+    schema: personSchema
+  },
 ];
 
 // Find matching route for a path
@@ -448,7 +560,23 @@ const generateBreadcrumbs = (path: string): { label: string; path: string }[] =>
     
     if (match) {
       const { route, params } = match;
-      const label = typeof route.label === 'function' ? route.label(params) : route.label;
+      let label;
+      
+      // Try to use the itemLabel function if available
+      if (route.itemLabel) {
+        // Get the actual item at this path
+        const dataset = useLiPDStore.getState().dataset;
+        const item = getItemFromPath(dataset, currentPath);
+        if (item) {
+          label = route.itemLabel(item);
+        }
+      }
+      
+      // Fall back to the regular label if itemLabel didn't work
+      if (!label) {
+        label = typeof route.label === 'function' ? route.label(params) : route.label;
+      }
+      
       breadcrumbs.push({ label, path: currentPath });
     }
   }
@@ -456,24 +584,81 @@ const generateBreadcrumbs = (path: string): { label: string; path: string }[] =>
   return breadcrumbs;
 };
 
+// Helper to get the actual item from a path
+const getItemFromPath = (dataset: any, path: string): any => {
+  if (!dataset || !path) return null;
+  
+  // For just 'dataset', return the whole dataset
+  if (path === 'dataset') return dataset;
+  
+  // Remove 'dataset.' prefix if present
+  const normalizedPath = path.startsWith('dataset.') ? path.substring(8) : path;
+  
+  // Split into parts and traverse
+  const parts = normalizedPath.split('.');
+  let current = dataset;
+  
+  for (const part of parts) {
+    if (!current || current[part] === undefined) {
+      return null;
+    }
+    current = current[part];
+  }
+  
+  return current;
+};
+
 // Router provider component
 export const RouterProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { selectedNode, setSelectedNode } = useLiPDStore((state) => ({
+  const { selectedNode, setSelectedNode, dataset } = useLiPDStore((state) => ({
     selectedNode: state.selectedNode,
     setSelectedNode: state.setSelectedNode,
+    dataset: state.dataset
   }));
 
-  const currentPath = selectedNode || '';
+  // Add navigation history state
+  const [navigationHistory, setNavigationHistory] = React.useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = React.useState<number>(-1);
+
+  const currentPath = selectedNode || 'dataset';
+  
+  // Update history when currentPath changes
+  React.useEffect(() => {
+    if (currentPath) {
+      // If we're not at the end of history, truncate it
+      if (historyIndex < navigationHistory.length - 1) {
+        setNavigationHistory(prev => prev.slice(0, historyIndex + 1));
+      }
+      
+      // Add new path if it's different from the current one
+      if (historyIndex === -1 || currentPath !== navigationHistory[historyIndex]) {
+        setNavigationHistory(prev => [...prev, currentPath]);
+        setHistoryIndex(prev => prev + 1);
+      }
+    }
+  }, [currentPath, historyIndex, navigationHistory]);
   
   const navigateTo = useCallback((path: string) => {
     setSelectedNode(path);
   }, [setSelectedNode]);
   
+  // Add goBack function
+  const goBack = useCallback(() => {
+    if (historyIndex > 0) {
+      const previousPath = navigationHistory[historyIndex - 1];
+      setHistoryIndex(historyIndex - 1);
+      setSelectedNode(previousPath);
+    }
+  }, [historyIndex, navigationHistory, setSelectedNode]);
+  
+  // Determine if we can go back
+  const canGoBack = historyIndex > 0;
+  
   const breadcrumbs = useMemo(() => 
-    generateBreadcrumbs(currentPath), [currentPath]);
+    generateBreadcrumbs(currentPath), [currentPath, dataset]);
   
   return (
-    <RouterContext.Provider value={{ currentPath, navigateTo, breadcrumbs }}>
+    <RouterContext.Provider value={{ currentPath, navigateTo, goBack, breadcrumbs, canGoBack }}>
       {children}
     </RouterContext.Provider>
   );
@@ -491,52 +676,57 @@ export const useRouter = () => {
 // Router component
 export const Router: React.FC = () => {
   const { currentPath } = useRouter();
-  const { updateDataset } = useLiPDStore(state => ({updateDataset: state.updateDataset}));
+  const { updateDataset, isLoading, dataset } = useLiPDStore(state => ({
+    updateDataset: state.updateDataset,
+    isLoading: state.isLoading,
+    dataset: state.dataset
+  }));
+  
+  // Show loading indicator while dataset is loading
+  if (isLoading || !dataset) {
+    return (
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100%', 
+        width: '100%'
+      }}>
+        <CircularProgress />
+        <Typography sx={{ ml: 2 }}>Loading dataset...</Typography>
+      </Box>
+    );
+  }
   
   const match = findMatchingRoute(currentPath);
   if (!match) {
-    return <div>Page not found</div>;
+    return (
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: 'column',
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100%', 
+        width: '100%',
+        p: 3,
+        textAlign: 'center'
+      }}>
+        <Typography variant="h6" sx={{ mb: 2 }}>Path not found: {currentPath}</Typography>
+        <Typography>Please select an item from the navigation panel or try reloading the editor.</Typography>
+      </Box>
+    );
   }
 
   const { route, params, schema } = match;
   const Component = route.component;
+  const title = typeof route.title === 'function' ? route.title(params) : route.title;
 
   return <Component 
+    dataset={dataset}
     params={params} 
     path={currentPath}
     onUpdate={updateDataset}
     schema={schema}
-    title={route.title}
+    title={title}
   />;
 };
-
-// Breadcrumb component
-export const Breadcrumbs: React.FC = () => {
-  const { breadcrumbs, navigateTo } = useRouter();
-
-  return (
-    <div style={{ 
-      display: 'flex', 
-      alignItems: 'center', 
-      padding: '8px 16px',
-      background: '#f5f5f5',
-      borderRadius: '4px'
-    }}>
-      {breadcrumbs.map((crumb, index) => (
-        <React.Fragment key={crumb.path}>
-          {index > 0 && <span style={{ margin: '0 8px' }}>/</span>}
-          <span
-            style={{ 
-              cursor: 'pointer',
-              color: index === breadcrumbs.length - 1 ? '#000' : '#0366d6',
-              fontWeight: index === breadcrumbs.length - 1 ? 'bold' : 'normal'
-            }}
-            onClick={() => navigateTo(crumb.path)}
-          >
-            {crumb.label}
-          </span>
-        </React.Fragment>
-      ))}
-    </div>
-  );
-}; 

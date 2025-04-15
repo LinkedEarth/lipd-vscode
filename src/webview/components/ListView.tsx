@@ -1,8 +1,12 @@
-import React from 'react';
-import { Box, List, ListItem, ListItemText, Divider, IconButton, Typography, Button } from '@mui/material';
+import React, { useState } from 'react';
+import { Box, List, ListItem, ListItemText, Divider, IconButton, Typography, Button, TextField } from '@mui/material';
 import { Edit, Delete, Add } from '@mui/icons-material';
+import CheckIcon from '@mui/icons-material/Check';
 import { useLiPDStore } from '../store';
-import { Schema } from '../schemas';
+import { Schema, SchemaField } from '../schemas';
+import { Fieldset } from './Fieldset';
+import { formVariant } from '../../utils/utils';
+import ConfirmDialog from './ConfirmDialog';
 
 interface ListViewProps {
     title: string;
@@ -15,6 +19,7 @@ interface ListViewProps {
     pathPrefix?: string;
     dense?: boolean;
     useFieldset?: boolean;
+    fieldSchema?: SchemaField;
 }
 
 const ListView: React.FC<ListViewProps> = ({ 
@@ -27,63 +32,157 @@ const ListView: React.FC<ListViewProps> = ({
     addButtonText,
     pathPrefix,
     dense = true,
-    useFieldset = true
+    useFieldset = true,
+    fieldSchema = {} as SchemaField
 }) => {
     const setSelectedNode = useLiPDStore((state: any) => state.setSelectedNode);
+    const [editIndex, setEditIndex] = useState<number | null>(null);
+    const [editValue, setEditValue] = useState<string>('');
+    const [addingNew, setAddingNew] = useState<boolean>(false);
+    const [newItemValue, setNewItemValue] = useState<string>('');
+    
+    // Add state for delete confirmation
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState<boolean>(false);
+    const [itemToDelete, setItemToDelete] = useState<number | null>(null);
+
+    // Determine if this is a list of simple values
+    const isSimpleList = !schema; // There is no schema associated with simple objects
 
     const handleEdit = (index: number) => {
-        if (pathPrefix) {
+        if (typeof items[index] !== 'object') {
+            setEditIndex(index);
+            setEditValue(String(items[index]));
+        } else if (pathPrefix) {
             setSelectedNode(`${pathPrefix}.${index}`);
+            onEdit(index);
+        } else {
+            onEdit(index);
         }
-        onEdit(index);
+    };
+
+    const handleSave = (index: number) => {
+        // Create a new array to avoid mutating the original
+        const updatedItems = [...items];
+        // Update the value at the specified index
+        updatedItems[index] = editValue;
+        
+        // For simple values, update directly without triggering navigation
+        if (typeof items[index] !== 'object' && pathPrefix) {
+            // If we have a path prefix, we can update the parent directly
+            const path = `${pathPrefix}.${index}`;
+            const updateDataset = useLiPDStore.getState().updateDataset;
+            updateDataset(path, editValue);
+        } else {
+            // Only call onEdit for complex objects
+            onEdit(index);
+        }
+        
+        // Reset edit state
+        setEditIndex(null);
+    };
+
+    const handleAddNew = () => {
+        if (isSimpleList) {
+            // For simple lists, show the add form instead of navigating
+            setAddingNew(true);
+            setNewItemValue('');
+        } else {
+            // For complex objects, use the default add behavior
+            onAdd();
+        }
+    };
+
+    const handleSaveNewItem = () => {
+        if (pathPrefix && newItemValue.trim() !== '') {
+            // Get current items
+            const updatedItems = [...items, newItemValue];
+            
+            // Update the dataset with the new array
+            const updateDataset = useLiPDStore.getState().updateDataset;
+            updateDataset(pathPrefix, updatedItems);
+            
+            // Reset add state
+            setAddingNew(false);
+            setNewItemValue('');
+        }
+    };
+
+    // New function to handle delete request - shows confirmation dialog
+    const handleDeleteRequest = (index: number, e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent the ListItem click
+        setItemToDelete(index);
+        setDeleteConfirmOpen(true);
+    };
+
+    // Function to confirm and execute deletion
+    const handleConfirmDelete = () => {
+        if (itemToDelete !== null) {
+            onDelete(itemToDelete);
+            setDeleteConfirmOpen(false);
+            setItemToDelete(null);
+        }
+    };
+
+    // Function to cancel deletion
+    const handleCancelDelete = () => {
+        setDeleteConfirmOpen(false);
+        setItemToDelete(null);
     };
 
     const content = (
         <>
-            {!useFieldset && (
-                <Box sx={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center', 
-                    mb: dense ? 0 : 2 
-                }}>
-                    <Typography variant={dense ? "subtitle1" : "h6"}>{title}</Typography>
-                    <Button
-                        variant="contained"
-                        startIcon={<Add sx={{ fontSize: dense ? 16 : 24 }} />}
-                        onClick={onAdd}
-                        size={dense ? "small" : "medium"}
-                    >
-                        {addButtonText}
-                    </Button>
-                </Box>
-            )}
             <List dense={dense} sx={{ width: '100%', p: 0 }}>
                 {(items || []).map((item, index) => {
-                    const primary = schema?.label?.primary ? schema.label.primary(item) : "Item " + (index + 1);
-                    const secondary = schema?.label?.secondary ? schema.label.secondary(item) : ""
+                    // console.log(item);
+                    // console.log(schema);
+                    let primary = schema?.label?.primary ? schema.label.primary(item) : "Item " + (index + 1);
+                    let secondary = schema?.label?.secondary ? schema.label.secondary(item) : ""
+
+                    if (!primary) {
+                        primary = "Unnamed"
+                    }
+                    const isSimpleValue = typeof item !== 'object';
+                    if (isSimpleValue) {
+                        primary = String(item);
+                    }                    
                     
                     return (
                     <React.Fragment key={index}>
                         {index > 0 && <Divider />}
                         <ListItem
-                            button
-                            onClick={() => handleEdit(index)}
+                            button={isSimpleValue ? false : true}
+                            onClick={() => isSimpleValue ? null : handleEdit(index)}
                             sx={{
-                                cursor: 'pointer',
+                                cursor: isSimpleValue ? 'default' : 'pointer',
                                 '&:hover': {
                                     backgroundColor: 'action.hover',
                                 }
                             }}
                             secondaryAction={
                                 <Box sx={{ display: 'flex' }}>
+                                    {editIndex === index ? (
+                                        <IconButton
+                                            edge="end"
+                                            aria-label="save"
+                                            onClick={() => handleSave(index)}
+                                            size={dense ? "small" : "medium"}
+                                        >
+                                            <CheckIcon sx={{ fontSize: dense ? 16 : 24 }} />
+                                        </IconButton>
+                                    ) : isSimpleValue ? (
+                                        <IconButton
+                                            edge="end"
+                                            aria-label="edit"
+                                            onClick={() => handleEdit(index)}
+                                            size={dense ? "small" : "medium"}
+                                        >
+                                            <Edit sx={{ fontSize: dense ? 16 : 24 }} />
+                                        </IconButton>
+                                    ) : null}
                                     <IconButton
                                         edge="end"
                                         aria-label="delete"
-                                        onClick={(e: React.MouseEvent) => {
-                                            e.stopPropagation(); // Prevent the ListItem click
-                                            onDelete(index);
-                                        }}
+                                        onClick={(e: React.MouseEvent) => handleDeleteRequest(index, e)}
                                         size={dense ? "small" : "medium"}
                                     >
                                         <Delete sx={{ fontSize: dense ? 16 : 24 }} />
@@ -91,70 +190,97 @@ const ListView: React.FC<ListViewProps> = ({
                                 </Box>
                             }
                         >
-                            <ListItemText
-                                primaryTypographyProps={{
-                                    fontSize: dense ? '0.9rem' : '1.2rem'
-                                }}
-                                secondaryTypographyProps={{
-                                    fontSize: dense ? '0.8rem' : '0.9rem'
-                                }}
-                                primary={primary}
-                                secondary={secondary}
-                            />
+                            {editIndex === index ? (
+                                <TextField
+                                    value={editValue}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditValue(e.target.value)}
+                                    variant={formVariant}
+                                    size="small"
+                                    fullWidth
+                                    autoFocus
+                                    onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                                        if (e.key === 'Enter') {
+                                            handleSave(index);
+                                        } else if (e.key === 'Escape') {
+                                            setEditIndex(null);
+                                        }
+                                    }}
+                                />
+                            ) : (
+                                <ListItemText
+                                    primaryTypographyProps={{
+                                        fontSize: dense ? '0.9rem' : '1.2rem'
+                                    }}
+                                    secondaryTypographyProps={{
+                                        fontSize: dense ? '0.8rem' : '0.9rem'
+                                    }}
+                                    primary={primary}
+                                    secondary={secondary}
+                                />
+                            )}
                         </ListItem>
                     </React.Fragment>
                     );
                 })}
+                
+                {/* Add new item input field */}
+                {addingNew && (
+                    <ListItem>
+                        <TextField
+                            value={newItemValue}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewItemValue(e.target.value)}
+                            variant={formVariant}
+                            size="small"
+                            fullWidth
+                            autoFocus
+                            placeholder="Enter new item"
+                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                                if (e.key === 'Enter') {
+                                    handleSaveNewItem();
+                                } else if (e.key === 'Escape') {
+                                    setAddingNew(false);
+                                }
+                            }}
+                            InputProps={{
+                                endAdornment: (
+                                    <IconButton
+                                        size="small"
+                                        onClick={handleSaveNewItem}
+                                    >
+                                        <CheckIcon fontSize="small" />
+                                    </IconButton>
+                                )
+                            }}
+                        />
+                    </ListItem>
+                )}
             </List>
+
+            {/* Confirmation Dialog */}
+            <ConfirmDialog
+                open={deleteConfirmOpen}
+                title="Confirm Deletion"
+                message={`Are you sure you want to delete this item?`}
+                onConfirm={handleConfirmDelete}
+                onCancel={handleCancelDelete}
+            />
         </>
     );
 
     if (useFieldset) {
         return (
-            <Box 
-                component="fieldset" 
-                sx={{ 
-                    m: 0,
-                    mb: 1,
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    borderRadius: 1,
-                    '& legend': {
-                        m: 0,
-                        px: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1,
-                        color: 'text.secondary',
-                        fontSize: '0.875rem',
-                        fontWeight: 500,
-                        '& .MuiButton-root': {
-                            minWidth: 0,
-                            p: 0.5,
-                            borderRadius: 1,
-                            color: 'inherit',
-                            '&:hover': {
-                                bgcolor: 'action.hover'
-                            }
-                        },
-                        '& .MuiSvgIcon-root': {
-                            fontSize: '1rem'
-                        }
-                    }
-                }}
-            >
+            <Fieldset dense={dense}>
                 <legend>
                     {title}
                     <Button
-                        onClick={onAdd}
+                        onClick={handleAddNew}
                         startIcon={<Add />}
-                        sx={{ ml: 1 }}
                     >
                         {addButtonText}
                     </Button>
                 </legend>
                 {content}
-            </Box>
+            </Fieldset>
         );
     }
 

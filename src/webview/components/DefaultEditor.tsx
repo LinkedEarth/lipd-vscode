@@ -5,7 +5,6 @@ import {
 } from '@mui/material';
 import { Schema, SchemaField } from '../schemas';
 
-import { useLiPDStore } from '../store';
 import { Location } from 'lipdjs';
 import LocationEditor from './LocationEditor';
 import { getValueFromPath } from '../../utils/utils';
@@ -16,35 +15,49 @@ import { FormTextField } from './FormTextField';
 import { Fieldset } from './Fieldset';
 
 
-export const DefaultEditor: React.FC<EditorProps> = ({ path, params, onUpdate, schema, columns = 1, dense = false, title = '' }) => {
-    const dataset = useLiPDStore(state => state.dataset);
+export const DefaultEditor: React.FC<EditorProps> = ({ 
+    dataset, 
+    path, 
+    params, 
+    onUpdate, 
+    schema, 
+    columns = 1, 
+    dense = true, 
+    title = '',
+    fieldSchema = {type: 'object'} as SchemaField,
+    useFieldset = false
+}) => {
+    // console.log("Invoked Default Editor for path:", path)
 
-    // Check if dataset exists
-    if (!dataset) return null;
+    const renderField = () => {
+        const parts = path.split('.');
+        const fieldName = parts[parts.length - 1];
 
-    const renderField = (fieldName: string, fieldSchema: SchemaField, path: string = fieldName) => {
         // Skip internal fields
         if (fieldName.startsWith('_')) return null;
         
         // Get the value from the dataset using the current path
         const value = getValueFromPath(dataset, path);
-        console.log('renderField:', fieldName, path, value);
+        // console.log('renderField:', fieldName, path, value);
 
         // Special case for location
-        if (fieldName === 'location' && value && typeof value === 'object') {
-            const location = value;
+        if (fieldName === 'location') {
+            const location = value || new Location();
             return (
-                <Fieldset legend="Location">
-                    <LocationEditor
-                        latitude={location.latitude}
-                        longitude={location.longitude}
-                        onUpdate={(field, newValue) => {
-                            const updatedLocation = { ...location };
-                            updatedLocation[field] = newValue;
-                            const updatedObject = Location.fromDictionary(updatedLocation);
-                            onUpdate(path, updatedObject);
-                        }}
-                    />
+                <Fieldset dense={false}>
+                    <legend>Location</legend>
+                    <Box sx={{p:1}}>
+                        <LocationEditor
+                            latitude={location.latitude}
+                            longitude={location.longitude}
+                            onUpdate={(field, newValue) => {
+                                const updatedLocation = { ...location };
+                                updatedLocation[field] = newValue;
+                                const updatedObject = Location.fromDictionary(updatedLocation);
+                                onUpdate(path, updatedObject);
+                            }}
+                        />
+                    </Box>
                 </Fieldset>
             );
         }
@@ -52,6 +65,7 @@ export const DefaultEditor: React.FC<EditorProps> = ({ path, params, onUpdate, s
         if (fieldSchema.type === 'enum') {
             return (
                 <DefaultEnumEditor
+                    dataset={dataset}
                     path={path}
                     params={params}
                     onUpdate={onUpdate}
@@ -64,6 +78,7 @@ export const DefaultEditor: React.FC<EditorProps> = ({ path, params, onUpdate, s
         if (fieldSchema.type === 'string' || fieldSchema.type === 'number') {
             return (
                 <FormTextField 
+                    key={path}
                     label={fieldSchema.label || fieldName}
                     defaultValue={value || ''}
                     type={fieldSchema.type}
@@ -74,29 +89,44 @@ export const DefaultEditor: React.FC<EditorProps> = ({ path, params, onUpdate, s
             );
         }
 
-        if (fieldSchema.type === 'object' && fieldSchema.schema) {
-            const nestedObject = value;
-            if (!nestedObject) return null;
-
-            return (
-                <Fieldset legend={fieldSchema.label || fieldName}>
-                    <DefaultEditor
-                        path={path}
-                        params={params}
-                        onUpdate={onUpdate}
-                        schema={fieldSchema.schema as Schema}
-                        columns={columns}
-                        dense={dense}
-                    />
-                </Fieldset>
+        if (fieldSchema.type === 'object') {
+            // console.log('renderObject:', fieldName, path, value);
+            const content = (
+                <>
+                <Box sx={{p: dense? 0 : 1}}>
+                    {Object.entries(schema?.fields || {}).map(([fieldName, subSchema]) => {
+                        if (subSchema.hidden) return null;
+                        return (
+                            <DefaultEditor
+                                dataset={dataset}
+                                path={`${path}.${fieldName}`}
+                                params={params}
+                                onUpdate={onUpdate}
+                                schema={subSchema.schema as Schema}
+                                columns={columns}
+                                dense={false}
+                                fieldSchema={subSchema as SchemaField}
+                                useFieldset={true}
+                            />
+                        )
+                    })}
+                </Box>
+                </>
             );
+            
+            return useFieldset ? (
+                <Fieldset dense={dense}>
+                    <legend>{title || fieldSchema.label || fieldName}</legend>
+                    {content}
+                </Fieldset>
+            ) : content;
         }
 
         if (fieldSchema.type === 'array' && fieldSchema.items) {
-            // console.log('arrayValue:', fieldName, arrayValue);
-            // console.log('schema:', fieldSchema.items.schema);
             return (
                 <DefaultListEditor
+                    dataset={dataset}
+                    fieldSchema={fieldSchema}
                     schema={fieldSchema.items.schema as Schema}
                     title={fieldSchema.label || fieldName}
                     onUpdate={onUpdate}
@@ -108,15 +138,6 @@ export const DefaultEditor: React.FC<EditorProps> = ({ path, params, onUpdate, s
         return null;
     };
 
-    return (
-        <Box sx={{ width: '100%', padding: dense ? 0 : 2 }}>
-            <Grid container alignItems="flex-start" spacing={2} sx={{ width: '100%' }}>
-                {Object.entries(schema?.fields || {}).map(([fieldName, fieldSchema]) => (
-                    <Grid item xs={12} md={12/columns} key={fieldName}>
-                        {renderField(fieldName, fieldSchema as SchemaField, path ? `${path}.${fieldName}` : fieldName)}
-                    </Grid>
-                ))}
-            </Grid>
-        </Box>
-    );
+    // Call appropriate editor based on type
+    return renderField();
 };

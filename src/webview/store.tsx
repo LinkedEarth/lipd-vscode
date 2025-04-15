@@ -1,10 +1,12 @@
 import create from 'zustand';
 import { Dataset } from 'lipdjs';
-import { AppState } from './types';
+import { AppState, ThemeMode } from './types';
 import { getVSCodeAPI } from './vscode';
+import { getSchemaForPath } from './schemas'
 
 // Get VS Code API singleton
 const vscode = getVSCodeAPI();
+
 
 // Create a store for our application state
 export const useLiPDStore = create<AppState>((set, get) => ({
@@ -15,9 +17,10 @@ export const useLiPDStore = create<AppState>((set, get) => ({
     
     // UI state
     selectedNode: null,
-    expandedNodes: new Set(['']),
+    expandedNodes: new Set(['dataset']),
     rightPanelOpen: true,
     selectedTab: 0,
+    themeMode: 'light', // New state for theme mode
     
     // Validation state
     validationErrors: {},
@@ -30,6 +33,17 @@ export const useLiPDStore = create<AppState>((set, get) => ({
     initialize: () => {
         // Send ready message to VS Code
         vscode.postMessage({ type: 'ready' });
+        
+        // Request theme info from VS Code
+        vscode.postMessage({ type: 'getTheme' });
+    },
+    
+    setIsLoading: (isLoading: boolean) => {
+        set({ isLoading });
+    },
+    
+    setThemeMode: (mode: ThemeMode) => {
+        set({ themeMode: mode });
     },
     
     setDataset: (dataset) => {
@@ -141,10 +155,8 @@ export const useLiPDStore = create<AppState>((set, get) => ({
             if (typeof path === 'string') {
                 // Handle dot notation paths
                 const parts = path.split('.');
-                parts.shift(); // Remove the first part, which is the dataset
-
                 const lastKey = parts.pop() as string;
-                if (parts.length > 0 && parts[0] === '') {
+                if (parts.length > 0 && parts[0] === 'dataset') {
                     parts.shift();
                 }
 
@@ -153,6 +165,33 @@ export const useLiPDStore = create<AppState>((set, get) => ({
                 // Traverse the path
                 for (let i = 0; i < parts.length; i++) {
                     const part = parts[i];
+                    if (!current[part]) {
+                        // Get the schema for this path
+                        const pathToHere = ['dataset', ...parts.slice(0, i+1)].join('.');
+                        const schema = getSchemaForPath(pathToHere);
+                        console.log('pathToHere:', pathToHere);
+                        console.log('schema:', schema);
+                        
+                        // If we have a schema, create a proper instance
+                        if (schema) {
+                            // For arrays, create an empty array since we're accessing an index
+                            if (parts[i+1] && !isNaN(Number(parts[i+1]))) {
+                                current[part] = [];
+                            } else if ('class' in schema && schema.class) {
+                                // For objects with a class, instantiate the class
+                                current[part] = new schema.class();
+                            } else if ('type' in schema && schema.type === 'array' && 'items' in schema && schema.items) {
+                                // For arrays with item schema, create an empty array
+                                current[part] = [];
+                            } else {
+                                // Fallback to empty object
+                                current[part] = {};
+                            }
+                        } else {
+                            // Fallback to empty object if no schema found
+                            current[part] = {};
+                        }
+                    }
                     current = current[part];
                 }
                 
@@ -166,8 +205,10 @@ export const useLiPDStore = create<AppState>((set, get) => ({
             }
             return obj;
         };
+        console.log('Updating dataset field:', field, 'with value:', value);
         updateNestedProperty(dataset, field, value);
-        
+        console.log('dataset:', dataset);
+
         // Force state update with properly typed dataset
         set({ dataset });
         

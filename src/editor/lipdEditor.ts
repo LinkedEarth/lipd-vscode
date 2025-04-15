@@ -33,6 +33,18 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
         private readonly lipdHandler: LiPDFileHandler
     ) {}
 
+    // Helper to get current theme
+    private getCurrentTheme(): 'light' | 'dark' | 'high-contrast' {
+        const colorTheme = vscode.window.activeColorTheme;
+        if (colorTheme.kind === vscode.ColorThemeKind.Light) {
+            return 'light';
+        } else if (colorTheme.kind === vscode.ColorThemeKind.Dark) {
+            return 'dark';
+        } else {
+            return 'high-contrast';
+        }
+    }
+
     async openCustomDocument(
         uri: vscode.Uri,
         _openContext: vscode.CustomDocumentOpenContext,
@@ -58,6 +70,27 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
         // Set up the HTML content for the webview
         webviewPanel.webview.html = this.getHtmlForWebview(webviewPanel.webview);
 
+        // Watch for theme changes
+        this.context.subscriptions.push(
+            vscode.window.onDidChangeActiveColorTheme(theme => {
+                let themeMode: 'light' | 'dark' | 'high-contrast';
+                
+                if (theme.kind === vscode.ColorThemeKind.Light) {
+                    themeMode = 'light';
+                } else if (theme.kind === vscode.ColorThemeKind.Dark) {
+                    themeMode = 'dark';
+                } else {
+                    themeMode = 'high-contrast';
+                }
+                
+                // Send the theme to the webview
+                webviewPanel.webview.postMessage({ 
+                    type: 'themeChanged', 
+                    theme: themeMode 
+                });
+            })
+        );
+
         // Set up message handling
         webviewPanel.webview.onDidReceiveMessage(async (message: any) => {
             console.log('Received message:', message);
@@ -79,6 +112,12 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
                             type: 'datasetLoaded', 
                             data: serializedDataset
                         });
+                        
+                        // Send initial theme
+                        webviewPanel.webview.postMessage({
+                            type: 'themeChanged',
+                            theme: this.getCurrentTheme()
+                        });
                     } catch (error) {
                         if (error instanceof Error) {
                             const errorMessage = `Failed to load LiPD file: ${error.message}`;
@@ -98,6 +137,14 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
                             });
                         }
                     }
+                    break;
+                    
+                case 'getTheme':
+                    // Send current theme to webview
+                    webviewPanel.webview.postMessage({
+                        type: 'themeChanged',
+                        theme: this.getCurrentTheme()
+                    });
                     break;
                     
                 case 'saveDataset':
@@ -156,6 +203,9 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
     }
 
     private getHtmlForWebview(webview: vscode.Webview): string {
+        // Get the current theme
+        const currentTheme = this.getCurrentTheme();
+
         // Get the local path to the editor HTML, and then read it
         const htmlPath = vscode.Uri.joinPath(this.context.extensionUri, 'media', 'editor.html');
         let htmlContent = fs.readFileSync(htmlPath.fsPath, 'utf8');
@@ -163,6 +213,25 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
         // Create URIs for scripts and styles
         const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'media', 'editor.js'));
         const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'media', 'editor.css'));
+        
+        // Generate styles based on the current theme
+        const themeStyles = `
+        <style>
+            :root {
+                color-scheme: ${currentTheme === 'dark' || currentTheme === 'high-contrast' ? 'dark' : 'light'};
+            }
+            body {
+                background-color: ${currentTheme === 'dark' ? '#1e1e1e' : 
+                                  currentTheme === 'high-contrast' ? '#000000' : 
+                                  '#ffffff'};
+                color: ${currentTheme === 'dark' || currentTheme === 'high-contrast' ? '#cccccc' : '#333333'};
+            }
+            /* Initial loader styles */
+            #lipd-editor-root {
+                transition: background-color 0.2s ease;
+            }
+        </style>
+        `;
         
         // Use a nonce to only allow specific scripts to be run
         const nonce = getNonce();
@@ -172,6 +241,10 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
         htmlContent = htmlContent.replace(/{{cssUri}}/g, styleUri.toString());
         htmlContent = htmlContent.replace(/{{cspSource}}/g, webview.cspSource);
         htmlContent = htmlContent.replace(/{{nonce}}/g, nonce);
+        htmlContent = htmlContent.replace('</head>', `${themeStyles}\n    <script nonce="${nonce}">
+            // Initialize theme data for the React app to use immediately
+            window.initialTheme = "${currentTheme}";
+        </script>\n</head>`);
 
         return htmlContent;
     }
@@ -202,14 +275,15 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
         document: LiPDDocument,
         context: vscode.CustomDocumentBackupContext
     ): Promise<vscode.CustomDocumentBackup> {
+        // We don't need special backup handling for now
         return {
             id: context.destination.toString(),
-            delete: () => { /* Cleanup if needed */ }
+            delete: () => { /* No special deletion needed */ }
         };
     }
 
     public dispose() {
-        // Clean up resources
+        // Clean up any resources
     }
 }
 

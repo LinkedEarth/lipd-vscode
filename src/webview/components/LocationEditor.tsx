@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Box, TextField, Paper, Typography } from '@mui/material';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-
+import { formVariant } from '../../utils/utils';
 // Get token from environment variables
 const MAPBOX_TOKEN = process.env.MAPBOX_TOKEN || 'pk.eyJ1IjoidmFydW5yYXRuYWthciIsImEiOiJjamZ3MnZjNjEwNnBzMnhvOHBpdHB5NGtpIn0.Qm9PUDyLZe6rpB3P0YBUWw';
 
@@ -125,6 +125,7 @@ const LocationEditor: React.FC<LocationEditorProps> = ({ latitude, longitude, on
                         value={lat}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleLatChange(e.target.value)}
                         size="small"
+                        variant={formVariant}
                         sx={{ width: 150 }}
                     />
                     <TextField
@@ -132,6 +133,7 @@ const LocationEditor: React.FC<LocationEditorProps> = ({ latitude, longitude, on
                         value={lng}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleLngChange(e.target.value)}
                         size="small"
+                        variant={formVariant}
                         sx={{ width: 150 }}
                     />
                 </Box>
