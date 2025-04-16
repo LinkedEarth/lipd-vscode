@@ -6,6 +6,7 @@ import { useLiPDStore } from './store';
 import NavigationPanel from './components/NavigationPanel';
 import { EditorPanel } from './components/EditorPanel';
 import AppBarBreadcrumbs from './components/AppBarBreadcrumbs';
+import AppBarActions from './components/AppBarActions';
 import { RouterProvider } from './router';
 
 // Set up initialTheme from window if available
@@ -18,7 +19,7 @@ declare global {
 // Handle messages from VS Code extension
 window.addEventListener('message', (event: MessageEvent) => {
     const message = event.data as VSCodeMessage;
-    console.log('Received message from VS Code:', message);
+    console.log('Received message from VS Code:', message.type);
     
     switch (message.type) {
         case 'ready':
@@ -30,23 +31,23 @@ window.addEventListener('message', (event: MessageEvent) => {
             // Initialize dataset with data from VS Code
             if (message.data) {
                 try {
-                    // Parse the JSON string if it's a string
-                    const datasetData = typeof message.data.data === 'string' 
-                        ? JSON.parse(message.data.data) 
-                        : message.data.data;
-                    
                     // Convert the plain object to a Dataset instance
-                    const dataset = Dataset.fromData(message.data.id, datasetData);
+                    const dataset = Dataset.fromDictionary(message.data);
+                    
+                    // Update the store with the dataset
                     useLiPDStore.getState().setDataset(dataset);
+                    
                     // Set loading state to false
                     useLiPDStore.getState().setIsLoading(false);
                 } catch (error) {
-                    console.error('Error parsing dataset:', error);
-                    useLiPDStore.getState().setError('Failed to parse dataset data');
+                    console.error('Error processing dataset:', error);
+                    useLiPDStore.getState().setError('Failed to parse dataset data: ' + 
+                        (error instanceof Error ? error.message : String(error)));
                     // Set loading state to false even if there's an error
                     useLiPDStore.getState().setIsLoading(false);
                 }
             } else {
+                console.error('No dataset data received in datasetLoaded message');
                 // No data received, set loading to false
                 useLiPDStore.getState().setIsLoading(false);
             }
@@ -188,6 +189,7 @@ const App: React.FC = () => {
                     >
                         <Toolbar>
                             <AppBarBreadcrumbs />
+                            <AppBarActions />
                         </Toolbar>
                     </AppBar>
                     <Box sx={{ 

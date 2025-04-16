@@ -31,11 +31,31 @@ export const useLiPDStore = create<AppState>((set, get) => ({
     
     // Actions
     initialize: () => {
+        console.log('Initializing LiPD editor');
+        // Set loading state to true to show loading indicator
+        set({ isLoading: true });
+        
         // Send ready message to VS Code
-        vscode.postMessage({ type: 'ready' });
+        try {
+            console.log('Sending ready message to VS Code');
+            vscode.postMessage({ type: 'ready' });
+        } catch (error) {
+            console.error('Error sending ready message:', error);
+            set({ 
+                isLoading: false,
+                notification: {
+                    type: 'error',
+                    message: 'Failed to initialize: Could not communicate with VS Code'
+                }
+            });
+        }
         
         // Request theme info from VS Code
-        vscode.postMessage({ type: 'getTheme' });
+        try {
+            vscode.postMessage({ type: 'getTheme' });
+        } catch (error) {
+            console.error('Error requesting theme:', error);
+        }
     },
     
     setIsLoading: (isLoading: boolean) => {
@@ -51,14 +71,6 @@ export const useLiPDStore = create<AppState>((set, get) => ({
             dataset,
             selectedNode: 'dataset'
         });
-        
-        // Send message to extension
-        if (dataset) {
-            vscode.postMessage({
-                type: 'datasetUpdated',
-                data: dataset
-            });
-        }
     },
     
     setSelectedNode: (node) => {
@@ -122,6 +134,19 @@ export const useLiPDStore = create<AppState>((set, get) => ({
         });
     },
     
+    saveDatasetAs: async () => {
+        const { dataset } = get();
+        if (!dataset) return;
+        
+        set({ isSaving: true });
+        
+        // Send message to extension to show save dialog
+        vscode.postMessage({
+            type: 'saveDatasetAs',
+            data: dataset
+        });
+    },
+    
     toggleRightPanel: () => set({ rightPanelOpen: !get().rightPanelOpen }),
     
     setSelectedTab: (tab) => set({ selectedTab: tab }),
@@ -129,27 +154,6 @@ export const useLiPDStore = create<AppState>((set, get) => ({
     updateDataset: (field, value) => {
         // console.log('Updating dataset field:', field, 'with value:', value);
         const dataset = { ...get().dataset } as Dataset;
-        
-        // For direct field updates, try to use a setter if available
-        if (typeof field === 'string' && !field.includes('.')) {
-            const setterName = `set${field.charAt(0).toUpperCase()}${field.slice(1)}`;
-            // Use type-safe approach for accessing object methods
-            if (dataset && typeof (dataset as any)[setterName] === 'function') {
-                (dataset as any)[setterName](value);
-                // console.log(`Called setter ${setterName} directly`);
-                
-                // Force state update
-                set({ dataset });
-                
-                // Send message to extension
-                vscode.postMessage({
-                    type: 'datasetUpdated',
-                    data: dataset
-                });
-                
-                return;
-            }
-        }
         
         const updateNestedProperty = (obj: any, path: string | string[], value: any): any => {
             if (typeof path === 'string') {
@@ -169,8 +173,6 @@ export const useLiPDStore = create<AppState>((set, get) => ({
                         // Get the schema for this path
                         const pathToHere = ['dataset', ...parts.slice(0, i+1)].join('.');
                         const schema = getSchemaForPath(pathToHere);
-                        console.log('pathToHere:', pathToHere);
-                        console.log('schema:', schema);
                         
                         // If we have a schema, create a proper instance
                         if (schema) {
@@ -205,14 +207,13 @@ export const useLiPDStore = create<AppState>((set, get) => ({
             }
             return obj;
         };
-        console.log('Updating dataset field:', field, 'with value:', value);
+
         updateNestedProperty(dataset, field, value);
-        console.log('dataset:', dataset);
 
         // Force state update with properly typed dataset
         set({ dataset });
-        
-        // Send message to extension
+
+        // console.log('Sending datasetUpdated message to VS Code');
         vscode.postMessage({
             type: 'datasetUpdated',
             data: dataset

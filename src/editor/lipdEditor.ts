@@ -6,7 +6,9 @@ import * as fs from 'fs';
 
 class LiPDDocument implements vscode.CustomDocument {
     constructor(
-        public readonly uri: vscode.Uri
+        public readonly uri: vscode.Uri,
+        public dataset: Dataset,
+        public updated_dataset: Dataset
     ) { }
 
     dispose(): void {
@@ -50,7 +52,9 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
         _openContext: vscode.CustomDocumentOpenContext,
         _token: vscode.CancellationToken
     ): Promise<LiPDDocument> {
-        const document = new LiPDDocument(uri);
+        console.log('Opening document:', uri.fsPath);
+        const dataset = await this.lipdHandler.readLiPDFile(uri.fsPath);
+        const document = new LiPDDocument(uri, dataset, dataset);
         return document;
     }
 
@@ -91,113 +95,41 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
             })
         );
 
-        // Set up message handling
+        // Message handlers
         webviewPanel.webview.onDidReceiveMessage(async (message: any) => {
-            console.log('Received message:', message);
-            switch (message.type) {
-                case 'ready':
-                    try {
-                        console.log('Loading LiPD file:', document.uri.fsPath);
-                        const dataset = await this.lipdHandler.readLiPDFile(document.uri.fsPath);
-                        
-                        // Convert the dataset to a plain object for transmission
-                        // The webview will convert it back to a Dataset instance
-                        const serializedDataset = {
-                            id: dataset.getId(),
-                            data: JSON.stringify(dataset.toData())
-                        };
-                        
-                        // Send the loaded dataset to the webview
-                        webviewPanel.webview.postMessage({ 
-                            type: 'datasetLoaded', 
-                            data: serializedDataset
-                        });
-                        
-                        // Send initial theme
-                        webviewPanel.webview.postMessage({
-                            type: 'themeChanged',
-                            theme: this.getCurrentTheme()
-                        });
-                    } catch (error) {
-                        if (error instanceof Error) {
-                            const errorMessage = `Failed to load LiPD file: ${error.message}`;
-                            vscode.window.showErrorMessage(errorMessage);
-                            // Send error to the webview
-                            webviewPanel.webview.postMessage({ 
-                                type: 'error', 
-                                error: errorMessage 
-                            });
-                        } else {
-                            const errorMessage = 'Failed to load LiPD file: Unknown error';
-                            vscode.window.showErrorMessage(errorMessage);
-                            // Send error to the webview
-                            webviewPanel.webview.postMessage({ 
-                                type: 'error', 
-                                error: errorMessage 
-                            });
-                        }
-                    }
-                    break;
-                    
-                case 'getTheme':
-                    // Send current theme to webview
+            if (message.type === 'ready') {
+                console.log('Webview is ready, sending dataset');
+                try {                    
+                    // Send the dataset to the webview
+                    webviewPanel.webview.postMessage({ 
+                        type: 'datasetLoaded', 
+                        data: document.dataset
+                    });
+
+                    // Send the theme to the webview
                     webviewPanel.webview.postMessage({
                         type: 'themeChanged',
                         theme: this.getCurrentTheme()
                     });
-                    break;
-                    
-                case 'saveDataset':
-                    try {
-                        const dataset = Dataset.fromJson(message.data);
-                        await this.lipdHandler.writeLiPDFile(document.uri.fsPath, dataset);
-                        this._onDidChangeCustomDocument.fire({
-                            document,
-                            undo: () => Promise.resolve(),
-                            redo: () => Promise.resolve()
-                        });
-                        
-                        // Send save confirmation to the webview
-                        webviewPanel.webview.postMessage({ 
-                            type: 'saveComplete', 
-                            success: true 
-                        });
-                        
-                        vscode.window.showInformationMessage('LiPD file saved successfully');
-                    } catch (error) {
-                        let errorMessage: string;
-                        if (error instanceof Error) {
-                            errorMessage = `Failed to save LiPD file: ${error.message}`;
-                        } else {
-                            errorMessage = 'Failed to save LiPD file: Unknown error';
-                        }
-                        
-                        // Send error to the webview
-                        webviewPanel.webview.postMessage({ 
-                            type: 'saveComplete', 
-                            success: false,
-                            error: errorMessage 
-                        });
-                        
-                        vscode.window.showErrorMessage(errorMessage);
-                    }
-                    break;
-                    
-                case 'validateDataset':
-                    try {
-                        // You would implement validation here
-                        // For now, just sending a mock response
-                        webviewPanel.webview.postMessage({
-                            type: 'validation',
-                            results: {
-                                errors: {},
-                                warnings: {}
-                            }
-                        });
-                    } catch (error) {
-                        console.error('Validation error:', error);
-                    }
-                    break;
+
+                } catch (error) {
+                    console.error('Error serializing dataset:', error);
+                    webviewPanel.webview.postMessage({ 
+                        type: 'error', 
+                        error: 'Failed to load dataset' 
+                    });
+                }
+            }
+            else if (message.type === 'datasetUpdated') {
+                console.log('Received updated dataset');
+                document.updated_dataset = Dataset.fromDictionary(message.data);
+                
+                // Fire the document change event to show the modification indicator (dot)
+                this._onDidChangeCustomDocument.fire({
+                    document,
+                    undo: () => Promise.resolve(),
+                    redo: () => Promise.resolve()
+                });
             }
         });
     }
@@ -252,12 +184,21 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
     async saveCustomDocument(document: LiPDDocument): Promise<void> {
         // This method is called when the editor is saving the document
         // It's handled by our message handler when the user clicks save in the UI
+        try {
+            console.log('Saving document:', document.uri.fsPath);
+            await this.lipdHandler.writeLiPDFile(document.uri.fsPath, document.updated_dataset);
+        } catch (error) {
+            if (error instanceof Error) {
+                throw new Error(`Failed to save LiPD file: ${error.message}`);
+            }
+            throw new Error('Failed to save LiPD file: Unknown error');
+        }
     }
 
     async saveCustomDocumentAs(document: LiPDDocument, destination: vscode.Uri): Promise<void> {
         try {
-            const dataset = await this.lipdHandler.readLiPDFile(document.uri.fsPath);
-            await this.lipdHandler.writeLiPDFile(destination.fsPath, dataset);
+            console.log('Saving document as :', destination.fsPath);
+            await this.lipdHandler.writeLiPDFile(destination.fsPath, document.updated_dataset);
         } catch (error) {
             if (error instanceof Error) {
                 throw new Error(`Failed to save LiPD file: ${error.message}`);

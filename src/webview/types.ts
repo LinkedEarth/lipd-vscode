@@ -44,6 +44,7 @@ export interface AppState {
     setSaveComplete: (success: boolean, error?: string) => void;
     setValidationResults: (results: { errors?: Record<string, any>; warnings?: Record<string, any> }) => void;
     saveDataset: () => Promise<void>;
+    saveDatasetAs: () => Promise<void>;
     setSelectedNode: (node: string | null) => void;
     setExpandedNodes: (nodes: Set<string>) => void;
     toggleExpandNode: (nodeId: string) => void;
