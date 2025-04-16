@@ -1,39 +1,40 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Box, TextField, Paper, Typography } from '@mui/material';
+import { Box } from '@mui/material';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { formVariant } from '../../utils/utils';
+import { getValueFromPath } from '../../utils/utils';
+import { EditorProps } from '../router';
+
 // Get token from environment variables
 const MAPBOX_TOKEN = process.env.MAPBOX_TOKEN || 'pk.eyJ1IjoidmFydW5yYXRuYWthciIsImEiOiJjamZ3MnZjNjEwNnBzMnhvOHBpdHB5NGtpIn0.Qm9PUDyLZe6rpB3P0YBUWw';
 
-interface LocationEditorProps {
-    latitude: string | null;
-    longitude: string | null;
-    onUpdate: (field: string, value: string) => void;
-}
 
-const LocationEditor: React.FC<LocationEditorProps> = ({ latitude, longitude, onUpdate }) => {
+const LocationEditor: React.FC<EditorProps> = ({ dataset, path, params, onUpdate, title = '' }) => {
+    const location = getValueFromPath(dataset, path);
+    // Track location coordinates to detect changes
+    const [coordinates, setCoordinates] = useState({
+        lat: parseFloat(location.latitude || '0') || 0,
+        lng: parseFloat(location.longitude || '0') || 0
+    });
+    
     const mapContainer = useRef<HTMLDivElement>(null);
     const map = useRef<mapboxgl.Map | null>(null);
     const marker = useRef<mapboxgl.Marker | null>(null);
 
-    const [lat, setLat] = useState(latitude || '');
-    const [lng, setLng] = useState(longitude || '');
-
+    // Initialize map and marker
     useEffect(() => {
         if (!mapContainer.current || map.current) return;
 
         mapboxgl.accessToken = MAPBOX_TOKEN;
         
-        const initialLat = parseFloat(latitude || '0') || 0;
-        const initialLng = parseFloat(longitude || '0') || 0;
+        const initialLat = parseFloat(location.latitude || '0') || 0;
+        const initialLng = parseFloat(location.longitude || '0') || 0;
 
         map.current = new mapboxgl.Map({
             container: mapContainer.current,
             style: 'mapbox://styles/mapbox/satellite-v9', // Satellite view with terrain
             center: [initialLng, initialLat],
-            zoom: 5,
-            // pitch: 60 // Tilt the map to show terrain better
+            zoom: 8,
         });
 
         // Add terrain and sky layers for better visualization
@@ -68,10 +69,16 @@ const LocationEditor: React.FC<LocationEditorProps> = ({ latitude, longitude, on
         marker.current.on('dragend', () => {
             const position = marker.current?.getLngLat();
             if (position) {
-                setLat(position.lat.toFixed(6));
-                setLng(position.lng.toFixed(6));
-                onUpdate('latitude', position.lat.toFixed(6));
-                onUpdate('longitude', position.lng.toFixed(6));
+                location.latitude = position.lat.toFixed(6);
+                location.longitude = position.lng.toFixed(6);
+                
+                // Update coordinates state to track changes
+                setCoordinates({
+                    lat: position.lat,
+                    lng: position.lng
+                });
+                
+                onUpdate(path, location);
             }
         });
 
@@ -82,71 +89,40 @@ const LocationEditor: React.FC<LocationEditorProps> = ({ latitude, longitude, on
         };
     }, []);
 
-    // Update marker when coordinates change via text input
-    const updateLocation = (newLat: string, newLng: string) => {
-        const latNum = parseFloat(newLat);
-        const lngNum = parseFloat(newLng);
-
-        if (!isNaN(latNum) && !isNaN(lngNum) && marker.current && map.current) {
-            marker.current.setLngLat([lngNum, latNum]);
-            map.current.flyTo({
-                center: [lngNum, latNum],
-                zoom: 8,
-                duration: 2000
+    // Monitor location changes from outside the component
+    useEffect(() => {
+        const currentLat = parseFloat(location.latitude || '0') || 0;
+        const currentLng = parseFloat(location.longitude || '0') || 0;
+        
+        // Only update if coordinates have changed from what we already know
+        if (currentLat !== coordinates.lat || currentLng !== coordinates.lng) {
+            setCoordinates({
+                lat: currentLat,
+                lng: currentLng
             });
+            
+            // Update the map marker and view if map is initialized
+            if (marker.current && map.current) {
+                marker.current.setLngLat([currentLng, currentLat]);
+                map.current.flyTo({
+                    center: [currentLng, currentLat],
+                    zoom: 8,
+                    duration: 1000
+                });
+            }
         }
-    };
-
-    const handleLatChange = (value: string) => {
-        setLat(value);
-        onUpdate('latitude', value);
-        if (lng) {
-            updateLocation(value, lng);
-        }
-    };
-
-    const handleLngChange = (value: string) => {
-        setLng(value);
-        onUpdate('longitude', value);
-        if (lat) {
-            updateLocation(lat, value);
-        }
-    };
+    }, [location.latitude, location.longitude]);
 
     return (
-        <Box>
-            <Paper elevation={0} sx={{ p: 2, mb: 2 }}>
-                <Typography variant="subtitle2" gutterBottom>
-                    Drag the marker or enter coordinates manually
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 2 }}>
-                    <TextField
-                        label="Latitude"
-                        value={lat}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleLatChange(e.target.value)}
-                        size="small"
-                        variant={formVariant}
-                        sx={{ width: 150 }}
-                    />
-                    <TextField
-                        label="Longitude"
-                        value={lng}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleLngChange(e.target.value)}
-                        size="small"
-                        variant={formVariant}
-                        sx={{ width: 150 }}
-                    />
-                </Box>
-            </Paper>
-            <Box
-                ref={mapContainer}
-                sx={{
-                    height: 400,
-                    borderRadius: 1,
-                    overflow: 'hidden'
-                }}
-            />
-        </Box>
+        <Box
+            ref={mapContainer}
+            sx={{
+                mt: 1,
+                height: 400,
+                borderRadius: 1,
+                overflow: 'hidden'
+            }}
+        />
     );
 };
 

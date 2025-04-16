@@ -20,13 +20,37 @@ export class LiPDFileHandler {
     public async readLiPDFile(filePath: string): Promise<Dataset> {
         try {
             logger.info(`Starting to read LiPD file: ${filePath}`);
+            
+            // Check if the file exists
+            if (!fs.existsSync(filePath) || fs.statSync(filePath).size === 0) {
+                logger.info(`File doesn't exist or is empty: ${filePath}, creating new Dataset`);
+                return this.createNewDataset(filePath);
+            }
+            
             const lipd = new LiPD();
             await lipd.load(filePath);
             const datasets = await lipd.getDatasets();
             logger.info(`Found ${datasets.length} datasets in LiPD file`);
+            
+            // Check if datasets array exists and has at least one element
+            if (!datasets || datasets.length === 0) {
+                logger.info('No datasets found in LiPD file, creating new Dataset');
+                return this.createNewDataset(filePath);
+            }
+            
             return datasets[0];
         } catch (error: unknown) {
             logger.error('ERROR: Failed to read LiPD file', error);
+            
+            // If file read error, create a new Dataset
+            if (error instanceof Error && 
+                (error.message.includes('no such file') || 
+                 error.message.includes('ENOENT') || 
+                 error.message.includes('Failed to parse'))) {
+                logger.info('Creating new Dataset due to file read error');
+                return this.createNewDataset(filePath);
+            }
+            
             if (error instanceof Error) {
                 throw new Error(`Failed to read LiPD file: ${error.message}`);
             }
@@ -162,5 +186,22 @@ export class LiPDFileHandler {
             logger.error('Direct save method failed:', error);
             throw error;
         }
+    }
+
+    // Helper to create a new Dataset with a default name based on the file path
+    private createNewDataset(filePath: string): Dataset {
+        const dataset = new Dataset();
+        
+        // Extract the filename without extension to use as the dataset name
+        const fileName = path.basename(filePath, path.extname(filePath));
+        
+        // Set dataset name if we have a valid filename
+        if (fileName) {
+            dataset.setName(fileName);
+        } else {
+            dataset.setName('New LiPD Dataset');
+        }
+        
+        return dataset;
     }
 } 

@@ -15,6 +15,10 @@ export const useLiPDStore = create<AppState>((set, get) => ({
     isLoading: false,
     isSaving: false,
     
+    // Undo/Redo state
+    canUndo: false,
+    canRedo: false,
+    
     // UI state
     selectedNode: null,
     expandedNodes: new Set(['dataset']),
@@ -73,6 +77,32 @@ export const useLiPDStore = create<AppState>((set, get) => ({
         });
     },
     
+    setDatasetSilently: (dataset) => {
+        // Updates the dataset without triggering an extension message
+        // Used by undo/redo to avoid creating new history entries
+        set({ dataset });
+    },
+    
+    undo: () => {
+        // Request an undo operation from the extension
+        vscode.postMessage({
+            type: 'executeCommand',
+            command: 'workbench.action.editor.undo'
+        });
+    },
+    
+    redo: () => {
+        // Request a redo operation from the extension
+        vscode.postMessage({
+            type: 'executeCommand',
+            command: 'workbench.action.editor.redo'
+        });
+    },
+    
+    setUndoRedoState: (canUndo: boolean, canRedo: boolean) => {
+        set({ canUndo, canRedo });
+    },
+    
     setSelectedNode: (node) => {
         // console.log('Setting selected node:', node);
         set({ selectedNode: node })
@@ -121,30 +151,30 @@ export const useLiPDStore = create<AppState>((set, get) => ({
         });
     },
     
-    saveDataset: async () => {
-        const { dataset } = get();
-        if (!dataset) return;
-        
+    saveDataset: () => {
+        // Set saving state to true
         set({ isSaving: true });
         
-        // Send message to extension
+        // Request a save operation from the extension
         vscode.postMessage({
-            type: 'saveDataset',
-            data: dataset
+            type: 'executeCommand',
+            command: 'workbench.action.files.save'
         });
+        
+        return Promise.resolve();
     },
     
-    saveDatasetAs: async () => {
-        const { dataset } = get();
-        if (!dataset) return;
-        
+    saveDatasetAs: () => {
+        // Set saving state to true
         set({ isSaving: true });
         
-        // Send message to extension to show save dialog
+        // Request a saveAs operation from the extension
         vscode.postMessage({
-            type: 'saveDatasetAs',
-            data: dataset
+            type: 'executeCommand',
+            command: 'workbench.action.files.saveAs'
         });
+        
+        return Promise.resolve();
     },
     
     toggleRightPanel: () => set({ rightPanelOpen: !get().rightPanelOpen }),

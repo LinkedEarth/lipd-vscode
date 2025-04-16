@@ -1,7 +1,7 @@
 import React, { useContext, useCallback, useMemo } from 'react';
 import { useLiPDStore } from './store';
 import { DataTableEditor } from './components/DataTableEditor';
-import { datasetSchema, dataTableSchema, dataSchema, modelSchema, publicationSchema, Schema, variableSchema, fundingSchema, interpretationSchema, calibrationSchema, changeLogSchema, changeLogEntrySchema, SchemaField, personSchema } from './schemas';
+import { datasetSchema, dataTableSchema, dataSchema, modelSchema, publicationSchema, Schema, variableSchema, fundingSchema, interpretationSchema, calibrationSchema, changeLogSchema, changeLogEntrySchema, SchemaField, personSchema, locationSchema } from './schemas';
 import { DefaultListEditor } from './components/DefaultListEditor';
 import { DefaultEditor } from './components/DefaultEditor';
 import { Box, CircularProgress, Typography } from '@mui/material';
@@ -133,6 +133,19 @@ const routes: Route[] = [
     },
     schema: publicationSchema
   },
+  // Location
+  {
+    path: 'dataset/location',
+    component: DefaultEditor,
+    label: 'Location',
+    title: 'Location',
+    itemLabel: () => 'Location',
+    getParams: (path) => {
+      const match = path.match(/^dataset\.location$/);
+      return match ? {} : null;
+    },
+    schema: locationSchema
+  },  
   // ChangeLog List
   {
     path: 'dataset/changeLogs',

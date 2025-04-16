@@ -3,13 +3,95 @@ import { LiPDFileHandler } from '../lipdFileHandler';
 import { Dataset } from 'lipdjs';
 import * as path from 'path';
 import * as fs from 'fs';
+// import { LiPD } from 'lipdjs';
+
+// Interface for an edit operation
+interface Edit {
+    dataset: Dataset;
+    label: string;
+    timestamp: number;
+}
+
+// Track active editors and documents
+type EditorInstance = {
+    document: LiPDDocument;
+    webviewPanel: vscode.WebviewPanel;
+};
 
 class LiPDDocument implements vscode.CustomDocument {
+    // Edit history for undo/redo
+    private undoStack: Edit[] = [];
+    private redoStack: Edit[] = [];
+    
     constructor(
         public readonly uri: vscode.Uri,
         public dataset: Dataset,
         public updated_dataset: Dataset
     ) { }
+
+    // Apply an edit to the document
+    async makeEdit(edit: Dataset, label: string): Promise<void> {
+        // Add the current state to the undo stack before applying the edit
+        this.undoStack.push({
+            dataset: this.updated_dataset,
+            label: label || 'Edit',
+            timestamp: Date.now()
+        });
+        
+        // Clear the redo stack on new edits
+        this.redoStack = [];
+        
+        // Update to the new state
+        this.updated_dataset = edit;
+    }
+    
+    // Undo the last edit
+    async undo(): Promise<Dataset | undefined> {
+        const lastEdit = this.undoStack.pop();
+        if (!lastEdit) {
+            return undefined; // Nothing to undo
+        }
+        
+        // Save current state to redo stack
+        this.redoStack.push({
+            dataset: this.updated_dataset,
+            label: lastEdit.label,
+            timestamp: Date.now()
+        });
+        
+        // Revert to the previous state
+        this.updated_dataset = lastEdit.dataset;
+        return this.updated_dataset;
+    }
+    
+    // Redo the last undone edit
+    async redo(): Promise<Dataset | undefined> {
+        const nextEdit = this.redoStack.pop();
+        if (!nextEdit) {
+            return undefined; // Nothing to redo
+        }
+        
+        // Save current state to undo stack
+        this.undoStack.push({
+            dataset: this.updated_dataset,
+            label: nextEdit.label,
+            timestamp: Date.now()
+        });
+        
+        // Apply the redone edit
+        this.updated_dataset = nextEdit.dataset;
+        return this.updated_dataset;
+    }
+    
+    // Check if we can undo
+    canUndo(): boolean {
+        return this.undoStack.length > 0;
+    }
+    
+    // Check if we can redo
+    canRedo(): boolean {
+        return this.redoStack.length > 0;
+    }
 
     dispose(): void {
         // Cleanup if needed
@@ -17,14 +99,30 @@ class LiPDDocument implements vscode.CustomDocument {
 }
 
 export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocument> {
+    // Track all open editor instances
+    private editorInstances: Map<string, EditorInstance> = new Map();
+    
     public static register(context: vscode.ExtensionContext, lipdHandler: LiPDFileHandler): vscode.Disposable {
         const provider = new LiPDEditorProvider(context, lipdHandler);
+        
+        // Register the editor provider
         const providerRegistration = vscode.window.registerCustomEditorProvider('lipd-vscode.lipdEditor', provider, {
             webviewOptions: {
-                retainContextWhenHidden: true // Keep the webview state when hidden
-            }
+                retainContextWhenHidden: true
+            },
+            supportsMultipleEditorsPerDocument: false
         });
-        return providerRegistration;
+        
+        // Register the global undo/redo commands that delegate to the active editor
+        const undoRegistration = vscode.commands.registerCommand('lipd-vscode.undo', () => {
+            provider.handleUndo();
+        });
+        
+        const redoRegistration = vscode.commands.registerCommand('lipd-vscode.redo', () => {
+            provider.handleRedo();
+        });
+        
+        return vscode.Disposable.from(providerRegistration, undoRegistration, redoRegistration);
     }
 
     private _onDidChangeCustomDocument = new vscode.EventEmitter<vscode.CustomDocumentEditEvent<LiPDDocument>>();
@@ -34,6 +132,73 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
         private readonly context: vscode.ExtensionContext,
         private readonly lipdHandler: LiPDFileHandler
     ) {}
+    
+    // Handle undo for the active editor
+    private handleUndo() {
+        const activeEditor = this.getActiveEditorInstance();
+        if (activeEditor && activeEditor.document.canUndo()) {
+            this.performUndo(activeEditor.document, activeEditor.webviewPanel);
+        }
+    }
+    
+    // Handle redo for the active editor
+    private handleRedo() {
+        const activeEditor = this.getActiveEditorInstance();
+        if (activeEditor && activeEditor.document.canRedo()) {
+            this.performRedo(activeEditor.document, activeEditor.webviewPanel);
+        }
+    }
+    
+    // Helper to find the active editor instance
+    private getActiveEditorInstance(): EditorInstance | undefined {
+        // Find the active editor
+        for (const [_, instance] of this.editorInstances) {
+            if (instance.webviewPanel.active) {
+                return instance;
+            }
+        }
+        return undefined;
+    }
+    
+    // Perform undo operation
+    private async performUndo(document: LiPDDocument, webviewPanel: vscode.WebviewPanel) {
+        const previousDataset = await document.undo();
+        if (previousDataset) {
+            // Notify the webview of the undo
+            webviewPanel.webview.postMessage({
+                type: 'datasetChanged',
+                data: previousDataset,
+                source: 'undo'
+            });
+            
+            // Update the undo/redo state
+            webviewPanel.webview.postMessage({
+                type: 'undoRedoStateChanged',
+                canUndo: document.canUndo(),
+                canRedo: document.canRedo()
+            });
+        }
+    }
+    
+    // Perform redo operation
+    private async performRedo(document: LiPDDocument, webviewPanel: vscode.WebviewPanel) {
+        const nextDataset = await document.redo();
+        if (nextDataset) {
+            // Notify the webview of the redo
+            webviewPanel.webview.postMessage({
+                type: 'datasetChanged',
+                data: nextDataset,
+                source: 'redo'
+            });
+            
+            // Update the undo/redo state
+            webviewPanel.webview.postMessage({
+                type: 'undoRedoStateChanged',
+                canUndo: document.canUndo(),
+                canRedo: document.canRedo()
+            });
+        }
+    }
 
     // Helper to get current theme
     private getCurrentTheme(): 'light' | 'dark' | 'high-contrast' {
@@ -53,9 +218,22 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
         _token: vscode.CancellationToken
     ): Promise<LiPDDocument> {
         console.log('Opening document:', uri.fsPath);
-        const dataset = await this.lipdHandler.readLiPDFile(uri.fsPath);
-        const document = new LiPDDocument(uri, dataset, dataset);
-        return document;
+        try {
+            // Create a new LiPD instance for each file to avoid collisions
+            const dataset = await this.lipdHandler.readLiPDFile(uri.fsPath);
+            if (!dataset) {
+                throw new Error('Failed to load dataset from file: Dataset is undefined');
+            }
+            const document = new LiPDDocument(uri, dataset, dataset);
+            return document;
+        } catch (error) {
+            // Log and show the error to the user
+            console.error('Error opening LiPD file:', error);
+            vscode.window.showErrorMessage(`Error opening LiPD file: ${error instanceof Error ? error.message : String(error)}`);
+            
+            // Re-throw the error to prevent VS Code from proceeding with an invalid document
+            throw error;
+        }
     }
 
     async resolveCustomEditor(
@@ -63,6 +241,15 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
         webviewPanel: vscode.WebviewPanel,
         _token: vscode.CancellationToken
     ): Promise<void> {
+        // Store this editor instance
+        const editorKey = document.uri.toString();
+        this.editorInstances.set(editorKey, { document, webviewPanel });
+        
+        // Clean up when this editor is closed
+        webviewPanel.onDidDispose(() => {
+            this.editorInstances.delete(editorKey);
+        });
+        
         // Set up the webview options
         webviewPanel.webview.options = {
             enableScripts: true,
@@ -122,14 +309,61 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
             }
             else if (message.type === 'datasetUpdated') {
                 console.log('Received updated dataset');
-                document.updated_dataset = Dataset.fromDictionary(message.data);
+                const updatedDataset = Dataset.fromDictionary(message.data);
+                
+                // Apply the edit and track it in the history
+                await document.makeEdit(updatedDataset, message.label || 'Edit');
                 
                 // Fire the document change event to show the modification indicator (dot)
                 this._onDidChangeCustomDocument.fire({
                     document,
-                    undo: () => Promise.resolve(),
-                    redo: () => Promise.resolve()
+                    undo: async () => {
+                        await this.performUndo(document, webviewPanel);
+                    },
+                    redo: async () => {
+                        await this.performRedo(document, webviewPanel);
+                    }
                 });
+                
+                // Update the undo/redo state in the webview
+                webviewPanel.webview.postMessage({
+                    type: 'undoRedoStateChanged',
+                    canUndo: document.canUndo(),
+                    canRedo: document.canRedo()
+                });
+            }
+            else if (message.type === 'undo') {
+                if (document.canUndo()) {
+                    await this.performUndo(document, webviewPanel);
+                }
+            }
+            else if (message.type === 'redo') {
+                if (document.canRedo()) {
+                    await this.performRedo(document, webviewPanel);
+                }
+            }
+            else if (message.type === 'executeCommand') {
+                // Execute a VSCode command
+                console.log(`Executing VS Code command: ${message.command}`);
+                try {
+                    await vscode.commands.executeCommand(message.command);
+                } catch (error) {
+                    console.error(`Error executing VS Code command ${message.command}:`, error);
+                    webviewPanel.webview.postMessage({
+                        type: 'error',
+                        error: `Failed to execute command: ${error instanceof Error ? error.message : String(error)}`
+                    });
+                    
+                    if (message.command === 'workbench.action.files.save' || 
+                        message.command === 'workbench.action.files.saveAs') {
+                        // Notify webview of save failure
+                        webviewPanel.webview.postMessage({
+                            type: 'saveComplete',
+                            success: false,
+                            error: error instanceof Error ? error.message : String(error)
+                        });
+                    }
+                }
             }
         });
     }
@@ -182,12 +416,37 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
     }
 
     async saveCustomDocument(document: LiPDDocument): Promise<void> {
-        // This method is called when the editor is saving the document
-        // It's handled by our message handler when the user clicks save in the UI
         try {
             console.log('Saving document:', document.uri.fsPath);
+            
             await this.lipdHandler.writeLiPDFile(document.uri.fsPath, document.updated_dataset);
+            console.log('Document saved successfully');
+            
+            // Find the webview and notify it of successful save
+            for (const [_, instance] of this.editorInstances) {
+                if (instance.document === document) {
+                    instance.webviewPanel.webview.postMessage({
+                        type: 'saveComplete',
+                        success: true
+                    });
+                    break;
+                }
+            }
         } catch (error) {
+            console.error('Error saving document:', error);
+            
+            // Find the webview and notify it of save failure
+            for (const [_, instance] of this.editorInstances) {
+                if (instance.document === document) {
+                    instance.webviewPanel.webview.postMessage({
+                        type: 'saveComplete',
+                        success: false,
+                        error: error instanceof Error ? error.message : String(error)
+                    });
+                    break;
+                }
+            }
+            
             if (error instanceof Error) {
                 throw new Error(`Failed to save LiPD file: ${error.message}`);
             }
@@ -197,9 +456,36 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
 
     async saveCustomDocumentAs(document: LiPDDocument, destination: vscode.Uri): Promise<void> {
         try {
-            console.log('Saving document as :', destination.fsPath);
+            console.log('Saving document as:', destination.fsPath);
+            
             await this.lipdHandler.writeLiPDFile(destination.fsPath, document.updated_dataset);
+            console.log('Document saved successfully as:', destination.fsPath);
+            
+            // Find the webview and notify it of successful save
+            for (const [_, instance] of this.editorInstances) {
+                if (instance.document === document) {
+                    instance.webviewPanel.webview.postMessage({
+                        type: 'saveComplete',
+                        success: true
+                    });
+                    break;
+                }
+            }
         } catch (error) {
+            console.error('Error saving document as:', error);
+            
+            // Find the webview and notify it of save failure
+            for (const [_, instance] of this.editorInstances) {
+                if (instance.document === document) {
+                    instance.webviewPanel.webview.postMessage({
+                        type: 'saveComplete',
+                        success: false,
+                        error: error instanceof Error ? error.message : String(error)
+                    });
+                    break;
+                }
+            }
+            
             if (error instanceof Error) {
                 throw new Error(`Failed to save LiPD file: ${error.message}`);
             }
@@ -208,8 +494,29 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
     }
 
     async revertCustomDocument(document: LiPDDocument): Promise<void> {
-        // Called when the user discards changes
-        // We can reload the original file
+        try {
+            // Reload the original document
+            const dataset = await this.lipdHandler.readLiPDFile(document.uri.fsPath);
+            if (!dataset) {
+                throw new Error('Failed to revert document: Dataset is undefined');
+            }
+            // Update the document with the reloaded data
+            document.updated_dataset = dataset;
+            // Find and update the webview if it exists
+            for (const [key, instance] of this.editorInstances) {
+                if (instance.document === document) {
+                    instance.webviewPanel.webview.postMessage({
+                        type: 'datasetChanged',
+                        data: document.updated_dataset,
+                        source: 'revert'
+                    });
+                    break;
+                }
+            }
+        } catch (error) {
+            console.error('Error reverting document:', error);
+            throw new Error(`Failed to revert document: ${error instanceof Error ? error.message : String(error)}`);
+        }
     }
 
     async backupCustomDocument(
@@ -224,7 +531,8 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
     }
 
     public dispose() {
-        // Clean up any resources
+        // Clear the editor instances map
+        this.editorInstances.clear();
     }
 }
 

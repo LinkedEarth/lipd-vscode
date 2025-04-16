@@ -6,7 +6,6 @@ import { useLiPDStore } from '../store';
 import { Schema, SchemaField } from '../schemas';
 import { Fieldset } from './Fieldset';
 import { formVariant } from '../../utils/utils';
-import ConfirmDialog from './ConfirmDialog';
 
 interface ListViewProps {
     title: string;
@@ -40,10 +39,6 @@ const ListView: React.FC<ListViewProps> = ({
     const [editValue, setEditValue] = useState<string>('');
     const [addingNew, setAddingNew] = useState<boolean>(false);
     const [newItemValue, setNewItemValue] = useState<string>('');
-    
-    // Add state for delete confirmation
-    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState<boolean>(false);
-    const [itemToDelete, setItemToDelete] = useState<number | null>(null);
 
     // Determine if this is a list of simple values
     const isSimpleList = !schema; // There is no schema associated with simple objects
@@ -107,26 +102,9 @@ const ListView: React.FC<ListViewProps> = ({
         }
     };
 
-    // New function to handle delete request - shows confirmation dialog
-    const handleDeleteRequest = (index: number, e: React.MouseEvent) => {
+    const handleDelete = (index: number, e: React.MouseEvent) => {
         e.stopPropagation(); // Prevent the ListItem click
-        setItemToDelete(index);
-        setDeleteConfirmOpen(true);
-    };
-
-    // Function to confirm and execute deletion
-    const handleConfirmDelete = () => {
-        if (itemToDelete !== null) {
-            onDelete(itemToDelete);
-            setDeleteConfirmOpen(false);
-            setItemToDelete(null);
-        }
-    };
-
-    // Function to cancel deletion
-    const handleCancelDelete = () => {
-        setDeleteConfirmOpen(false);
-        setItemToDelete(null);
+        onDelete(index);
     };
 
     const content = (
@@ -182,7 +160,7 @@ const ListView: React.FC<ListViewProps> = ({
                                     <IconButton
                                         edge="end"
                                         aria-label="delete"
-                                        onClick={(e: React.MouseEvent) => handleDeleteRequest(index, e)}
+                                        onClick={(e: React.MouseEvent) => handleDelete(index, e)}
                                         size={dense ? "small" : "medium"}
                                     >
                                         <Delete sx={{ fontSize: dense ? 16 : 24 }} />
@@ -255,15 +233,6 @@ const ListView: React.FC<ListViewProps> = ({
                     </ListItem>
                 )}
             </List>
-
-            {/* Confirmation Dialog */}
-            <ConfirmDialog
-                open={deleteConfirmOpen}
-                title="Confirm Deletion"
-                message={`Are you sure you want to delete this item?`}
-                onConfirm={handleConfirmDelete}
-                onCancel={handleCancelDelete}
-            />
         </>
     );
 

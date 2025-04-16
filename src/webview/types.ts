@@ -21,6 +21,10 @@ export interface AppState {
     isLoading: boolean;
     isSaving: boolean;
     
+    // Undo/Redo state
+    canUndo: boolean;
+    canRedo: boolean;
+    
     // UI state
     selectedNode: string | null;
     expandedNodes: Set<string>;
@@ -38,6 +42,7 @@ export interface AppState {
     // Actions
     initialize: () => void;
     setDataset: (dataset: any) => void;
+    setDatasetSilently: (dataset: any) => void;
     setIsLoading: (isLoading: boolean) => void;
     setThemeMode: (mode: ThemeMode) => void;
     setError: (error: string) => void;
@@ -45,6 +50,9 @@ export interface AppState {
     setValidationResults: (results: { errors?: Record<string, any>; warnings?: Record<string, any> }) => void;
     saveDataset: () => Promise<void>;
     saveDatasetAs: () => Promise<void>;
+    undo: () => void;
+    redo: () => void;
+    setUndoRedoState: (canUndo: boolean, canRedo: boolean) => void;
     setSelectedNode: (node: string | null) => void;
     setExpandedNodes: (nodes: Set<string>) => void;
     toggleExpandNode: (nodeId: string) => void;

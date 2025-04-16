@@ -108,6 +108,10 @@ const NavigationPanel: React.FC<{ dataset: Dataset | null }> = ({ dataset }) => 
                 sx={{ height: '100%', flexGrow: 1, maxWidth: 400, overflowY: 'auto' }}
             >
                 <TreeItem itemId="dataset" label="Dataset">
+                    <TreeItem
+                        itemId="dataset.location"
+                        label="Location"
+                    />
                     {renderPaleoDataTree()}
                     {renderChronDataTree()}
                     {renderPublicationsTree()}

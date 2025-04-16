@@ -111,8 +111,8 @@ export const locationSchema: Schema = {
         country: { type: 'string', label: 'Country' },
         countryOcean: { type: 'string', label: 'Country Ocean' },
         ocean: { type: 'string', label: 'Ocean' },
-        locationName: { type: 'string', label: 'Location Name' },
-        locationType: { type: 'string', label: 'Location Type' }
+        // locationName: { type: 'string', label: 'Location Name' },
+        // locationType: { type: 'string', label: 'Location Type' }
     },
     class: Location
 };
@@ -496,6 +496,7 @@ export const datasetSchema: Schema = {
       schema: archiveTypeSchema
     },
     location: { 
+      hidden: true,
       type: 'object', 
       label: 'Location',
       schema: locationSchema

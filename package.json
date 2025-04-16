@@ -40,6 +40,30 @@
       {
         "command": "lipd-vscode.convertToRDF",
         "title": "Convert LiPD to RDF"
+      },
+      {
+        "command": "lipd-vscode.undo",
+        "title": "Undo",
+        "icon": "$(undo)"
+      },
+      {
+        "command": "lipd-vscode.redo",
+        "title": "Redo",
+        "icon": "$(redo)"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "lipd-vscode.undo",
+        "key": "ctrl+z",
+        "mac": "cmd+z",
+        "when": "resourceExtname == .lpd && editorFocus"
+      },
+      {
+        "command": "lipd-vscode.redo",
+        "key": "ctrl+y",
+        "mac": "cmd+shift+z",
+        "when": "resourceExtname == .lpd && editorFocus"
       }
     ],
     "menus": {
@@ -140,7 +164,7 @@
     "@mui/x-data-grid": "^7.28.3",
     "@mui/x-tree-view": "^7.28.1",
     "@types/mapbox-gl": "^3.4.1",
-    "lipdjs": "^0.0.5",
+    "lipdjs": "^0.0.7",
     "mapbox-gl": "^3.11.0",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",

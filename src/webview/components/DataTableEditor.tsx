@@ -15,7 +15,7 @@ import Delete from '@mui/icons-material/Delete';
 import { variableSchema } from '../schemas';
 import { formVariant, getValueFromPath } from '../../utils/utils';
 import { EditorProps } from '../router';
-import ConfirmDialog from './ConfirmDialog';
+import { FormTextField } from './FormTextField';
 
 export const DataTableEditor: React.FC<EditorProps> = ({ path, params, onUpdate, title = '' }) => {
     const dataset = useLiPDStore((state: any) => state.dataset);
@@ -42,10 +42,6 @@ export const DataTableEditor: React.FC<EditorProps> = ({ path, params, onUpdate,
     const metadata = dataList.metadata || [];
     const variables = table.getVariables() || [];
 
-    // Add state for delete confirmation
-    const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
-    const [rowToDelete, setRowToDelete] = React.useState<number | null>(null);
-
     const handleAddRow = () => {
         // Create a new empty row with appropriate number of columns
         const newRow = Array(columns.length).fill('');
@@ -54,7 +50,7 @@ export const DataTableEditor: React.FC<EditorProps> = ({ path, params, onUpdate,
         const updatedRows = [...rows, newRow];
         
         // Update the table with the new data
-        table.setDataFrame({ 
+        table.setDataList({ 
             data: updatedRows, 
             metadata: metadata 
         });
@@ -68,7 +64,7 @@ export const DataTableEditor: React.FC<EditorProps> = ({ path, params, onUpdate,
         updatedRows.splice(rowIndex, 1);
         
         // Update the table with the modified data
-        table.setDataFrame({ 
+        table.setDataList({ 
             data: updatedRows, 
             metadata: metadata 
         });
@@ -148,25 +144,6 @@ export const DataTableEditor: React.FC<EditorProps> = ({ path, params, onUpdate,
         setCsvDialogOpen(true);
     };
 
-    const handleDeleteRowRequest = (rowIndex: number, e: React.MouseEvent) => {
-        e.stopPropagation(); // Prevent the row click
-        setRowToDelete(rowIndex);
-        setDeleteConfirmOpen(true);
-    };
-
-    const handleConfirmDeleteRow = () => {
-        if (rowToDelete !== null) {
-            handleDeleteRow(rowToDelete);
-            setDeleteConfirmOpen(false);
-            setRowToDelete(null);
-        }
-    };
-
-    const handleCancelDeleteRow = () => {
-        setDeleteConfirmOpen(false);
-        setRowToDelete(null);
-    };
-
     const gridColumns: GridColDef[] = [
         ...columns.map((column: Variable, colIndex: number) => ({
             field: colIndex.toString(),
@@ -185,7 +162,10 @@ export const DataTableEditor: React.FC<EditorProps> = ({ path, params, onUpdate,
                         size="small" 
                         edge="end"
                         aria-label="delete"
-                        onClick={(e: React.MouseEvent) => handleDeleteRowRequest(params.row.rowIndex, e)}
+                        onClick={(e: React.MouseEvent) => {
+                            e.stopPropagation(); // Prevent the row click
+                            handleDeleteRow(params.row.rowIndex);
+                        }}
                     >
                         <Delete sx={{ fontSize: 16 }} />
                     </IconButton>
@@ -249,25 +229,23 @@ export const DataTableEditor: React.FC<EditorProps> = ({ path, params, onUpdate,
 
             <Grid container spacing={2} sx={{ mb: 2 }}>
                 <Grid item xs={12} sm={6}>
-                    <TextField
-                        fullWidth
+                    <FormTextField
+                        key={`${path}.fileName`}
                         label="File Name"
-                        value={table.getFileName() || ''}
-                        variant={formVariant}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                            table.setFileName(e.target.value);
+                        defaultValue={table.getFileName() || ''}
+                        onBlur={(value) => {
+                            table.setFileName(value);
                             onUpdate(path, table);
                         }}
                     />
                 </Grid>
                 <Grid item xs={12} sm={6}>
-                    <TextField
-                        fullWidth
+                    <FormTextField
+                        key={`${path}.missingValue`}
                         label="Missing Value"
-                        value={table.getMissingValue() || ''}
-                        variant={formVariant}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                            table.setMissingValue(e.target.value);
+                        defaultValue={table.getMissingValue() || ''}
+                        onBlur={(value) => {
+                            table.setMissingValue(value);
                             onUpdate(path, table);
                         }}
                     />
@@ -334,15 +312,6 @@ export const DataTableEditor: React.FC<EditorProps> = ({ path, params, onUpdate,
                     <Button onClick={() => setCsvDialogOpen(false)}>Close</Button>
                 </DialogActions>
             </Dialog>
-
-            {/* Confirmation Dialog */}
-            <ConfirmDialog
-                open={deleteConfirmOpen}
-                title="Confirm Row Deletion"
-                message="Are you sure you want to delete this row? This action cannot be undone."
-                onConfirm={handleConfirmDeleteRow}
-                onCancel={handleCancelDeleteRow}
-            />
         </Box>
     );
 };

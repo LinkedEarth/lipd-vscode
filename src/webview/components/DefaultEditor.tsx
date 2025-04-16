@@ -40,28 +40,6 @@ export const DefaultEditor: React.FC<EditorProps> = ({
         const value = getValueFromPath(dataset, path);
         // console.log('renderField:', fieldName, path, value);
 
-        // Special case for location
-        if (fieldName === 'location') {
-            const location = value || new Location();
-            return (
-                <Fieldset dense={false}>
-                    <legend>Location</legend>
-                    <Box sx={{p:1}}>
-                        <LocationEditor
-                            latitude={location.latitude}
-                            longitude={location.longitude}
-                            onUpdate={(field, newValue) => {
-                                const updatedLocation = { ...location };
-                                updatedLocation[field] = newValue;
-                                const updatedObject = Location.fromDictionary(updatedLocation);
-                                onUpdate(path, updatedObject);
-                            }}
-                        />
-                    </Box>
-                </Fieldset>
-            );
-        }
-
         if (fieldSchema.type === 'enum') {
             return (
                 <DefaultEnumEditor
@@ -94,6 +72,15 @@ export const DefaultEditor: React.FC<EditorProps> = ({
             const content = (
                 <>
                 <Box sx={{p: dense? 0 : 1}}>
+                    {fieldName === 'location' && (
+                        <LocationEditor
+                            dataset={dataset}
+                            path={path}
+                            params={params}
+                            onUpdate={onUpdate}
+                            title={title}
+                        />
+                    )}                     
                     {Object.entries(schema?.fields || {}).map(([fieldName, subSchema]) => {
                         if (subSchema.hidden) return null;
                         return (
@@ -109,7 +96,7 @@ export const DefaultEditor: React.FC<EditorProps> = ({
                                 useFieldset={true}
                             />
                         )
-                    })}
+                    })}                   
                 </Box>
                 </>
             );

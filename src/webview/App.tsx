@@ -80,6 +80,34 @@ window.addEventListener('message', (event: MessageEvent) => {
                 useLiPDStore.getState().setThemeMode(message.theme as ThemeMode);
             }
             break;
+            
+        case 'datasetChanged':
+            // Handle dataset changes from undo/redo operations
+            if (message.data) {
+                try {
+                    console.log(`Dataset changed due to ${message.source} operation`);
+                    
+                    // Convert the dataset to a Dataset instance if needed
+                    const dataset = message.data instanceof Dataset ? 
+                        message.data : Dataset.fromDictionary(message.data);
+                    
+                    // Update the store with the updated dataset without triggering a new history entry
+                    useLiPDStore.getState().setDatasetSilently(dataset);
+                } catch (error) {
+                    console.error('Error processing dataset change:', error);
+                    useLiPDStore.getState().setError('Failed to update dataset: ' + 
+                        (error instanceof Error ? error.message : String(error)));
+                }
+            }
+            break;
+            
+        case 'undoRedoStateChanged':
+            // Update the UI with current undo/redo state
+            useLiPDStore.getState().setUndoRedoState(
+                message.canUndo === true, 
+                message.canRedo === true
+            );
+            break;
     }
 });
 
