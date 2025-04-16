@@ -2,7 +2,18 @@
   "name": "lipd-vscode",
   "displayName": "LiPD File Support",
   "description": "Support for reading and writing LiPD (Linked Paleo Data) files in VSCode",
-  "version": "0.0.1",
+  "version": "1.0.0",
+  "publisher": "LinkedEarth",
+  "author": {
+    "name": "Varun Ratnakar",
+    "email": "varunr@isi.edu"
+  },
+  "license": "MIT",
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#C80000",
+    "theme": "dark"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -10,6 +21,17 @@
     "Programming Languages",
     "Other"
   ],
+  "keywords": [
+    "lipd",
+    "paleoclimate",
+    "linked data",
+    "scientific data",
+    "climate"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/LinkedEarth/lipd-vscode"
+  },
   "main": "./out/main.js",
   "contributes": {
     "customEditors": [
@@ -152,9 +174,6 @@
     "typescript": "^4.5.5",
     "vscode-test": "^1.5.1"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",

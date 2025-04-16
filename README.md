@@ -2,58 +2,76 @@
 
 This extension provides support for reading and writing LiPD (Linked Paleo Data) files in Visual Studio Code.
 
+![LiPD Editor Overview](images/lipd-editor-overview.png)
+
 ## Features
 
-- Open and read LiPD (.lpd) files
-- Convert LiPD files to JSON for viewing and editing
-- Save JSON data back to LiPD format
-- Basic syntax highlighting for LiPD files
+- Open and view LiPD (.lpd) files directly in VS Code
+- Interactive editor with form-based editing of all LiPD properties
+- Map visualization for location data using Mapbox
+- Create new empty LiPD files
+- Edit datasets with built-in undo/redo functionality
+- Export CSV data from data tables
+
+## Screenshots
+
+### Dataset Overview
+![Dataset Overview](images/dataset.png)
+
+### Interactive Map for Location Data
+![Location Map](images/location.png)
+
+### Data Table Editing
+![Data Table Editor](images/datatable.png)
+
+### Publications
+![Publications](images/publications.png)
 
 ## Requirements
 
 - Visual Studio Code 1.85.0 or higher
-- Python 3.6 or higher
-- PyLiPD library installed in your Python environment
 
 ## Installation
 
-1. Clone this repository
-2. Install Python dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Install Node.js dependencies:
-   ```bash
-   npm install
-   ```
-4. Build the extension:
-   ```bash
-   npm run compile
-   ```
-5. Press F5 in VSCode to start debugging the extension
+You can install the extension directly from the VS Code Marketplace:
+
+1. Open VS Code
+2. Go to Extensions (Ctrl+Shift+X)
+3. Search for "LiPD File Support"
+4. Click Install
 
 ## Usage
 
-1. Open a LiPD file (.lpd extension)
-2. Right-click in the editor to see available commands:
-   - "Open LiPD File": Opens the LiPD file and shows its contents as JSON
-   - "Save as LiPD File": Saves the current JSON content as a LiPD file
+### Opening LiPD Files:
+- Double-click on any `.lpd` file in your workspace to open it in the custom editor
+- You can also right-click on a `.lpd` file and select "Open With..." > "LiPD Editor"
+
+### Creating New Files:
+- Create a new file with a `.lpd` extension
+- An empty dataset will be created automatically
+
+### Editing:
+- Navigate through the dataset using the tree view
+- Edit fields directly in the form
+- Map locations can be set by dragging the marker or entering coordinates
+- All changes support Undo (Ctrl+Z) and Redo (Ctrl+Y)
+
+### Saving:
+- Save changes with Ctrl+S (Cmd+S on macOS)
+- Use File > Save As... to save to a new location
 
 ## Extension Settings
 
-This extension contributes the following settings:
-
-* `lipd-vscode.enableAutoConvert`: Enable/disable automatic conversion of LiPD files to JSON when opened
+This extension doesn't currently require any settings.
 
 ## Known Issues
 
-- Binary LiPD files are converted to JSON for viewing
-- Some complex LiPD structures may not be fully supported
-- Requires Python 3.6 or higher to be installed and accessible from the command line
+- Some complex LiPD structures may not be fully supported yet
+- Currently, the extension works best with relatively small to medium-sized LiPD files
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please feel free to submit a Pull Request to the [GitHub repository](https://github.com/LinkedEarth/lipd-vscode).
 
 ## License
 
