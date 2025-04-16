@@ -3,10 +3,10 @@
   "displayName": "LiPD File Support",
   "description": "Support for reading and writing LiPD (Linked Paleo Data) files in VSCode",
   "version": "1.0.0",
-  "publisher": "LinkedEarth",
+  "publisher": "karyalimited",
   "author": {
     "name": "Varun Ratnakar",
-    "email": "varunr@isi.edu"
+    "email": "varunratnakar@gmail.com"
   },
   "license": "MIT",
   "icon": "media/icon.png",
