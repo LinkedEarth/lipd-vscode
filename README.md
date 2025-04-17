@@ -64,6 +64,9 @@ You can install the extension directly from the VS Code Marketplace:
 
 This extension doesn't currently require any settings.
 
+## Related projects
+- [LiPD-JS](https://github.com/LinkedEarth/lipdjs) : This is a javascript library to read/write LiPD files. This extension uses this library.
+- [PyLiPD](https://github.com/LinkedEarth/pylipd) : This is a python library to read/write LiPD files
 ## Known Issues
 
 - Some complex LiPD structures may not be fully supported yet
