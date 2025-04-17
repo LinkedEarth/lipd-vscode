@@ -2,8 +2,6 @@
 
 This extension provides support for reading and writing LiPD (Linked Paleo Data) files in Visual Studio Code.
 
-![LiPD Editor Overview](images/lipd-editor-overview.png)
-
 ## Features
 
 - Open and view LiPD (.lpd) files directly in VS Code
