@@ -39,7 +39,7 @@
         {
           "id": "lipd-explorer",
           "title": "LiPD Explorer",
-          "icon": "media/icon-small.svg"
+          "icon": "media/lipd-icon.png"
         }
       ]
     },
@@ -47,8 +47,8 @@
       "lipd-explorer": [
         {
           "id": "lipdExplorer",
-          "name": "LiPD Files",
-          "icon": "media/icon-small.svg",
+          "name": "GraphDB Explorer",
+          "icon": "media/lipd-icon.png",
           "contextualTitle": "LiPD Explorer"
         }
       ]
