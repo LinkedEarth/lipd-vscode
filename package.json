@@ -2,7 +2,7 @@
   "name": "lipd-vscode",
   "displayName": "LiPD File Support",
   "description": "Support for reading and writing LiPD (Linked Paleo Data) files in VSCode",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "publisher": "karyalimited",
   "author": {
     "name": "Varun Ratnakar",
@@ -34,6 +34,25 @@
   },
   "main": "./out/main.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "lipd-explorer",
+          "title": "LiPD Explorer",
+          "icon": "media/icon-small.svg"
+        }
+      ]
+    },
+    "views": {
+      "lipd-explorer": [
+        {
+          "id": "lipdExplorer",
+          "name": "LiPD Files",
+          "icon": "media/icon-small.svg",
+          "contextualTitle": "LiPD Explorer"
+        }
+      ]
+    },
     "customEditors": [
       {
         "viewType": "lipd-vscode.lipdEditor",
@@ -72,6 +91,37 @@
         "command": "lipd-vscode.redo",
         "title": "Redo",
         "icon": "$(redo)"
+      },
+      {
+        "command": "lipd-vscode.refreshExplorer",
+        "title": "Refresh LiPD Explorer",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "lipd-vscode.openRemoteLiPD",
+        "title": "Open Remote LiPD Dataset"
+      },
+      {
+        "command": "lipd-vscode.openRemoteDatasetInEditor",
+        "title": "Open Remote Dataset in Editor"
+      },
+      {
+        "command": "lipd-vscode.setGraphDbUrl",
+        "title": "Set GraphDB Endpoint URL"
+      },
+      {
+        "command": "lipd-vscode.debugEditorProvider",
+        "title": "Debug: Check Editor Provider Status"
+      },
+      {
+        "command": "lipd-vscode.searchDatasets",
+        "title": "Search Datasets",
+        "icon": "$(search)"
+      },
+      {
+        "command": "lipd-vscode.clearSearch",
+        "title": "Clear Search",
+        "icon": "$(clear-all)"
       }
     ],
     "keybindings": [
@@ -115,6 +165,23 @@
           "when": "resourceExtname == .lpd",
           "group": "navigation"
         }
+      ],
+      "view/title": [
+        {
+          "command": "lipd-vscode.refreshExplorer",
+          "when": "view == lipdExplorer",
+          "group": "navigation"
+        },
+        {
+          "command": "lipd-vscode.searchDatasets",
+          "when": "view == lipdExplorer",
+          "group": "navigation"
+        },
+        {
+          "command": "lipd-vscode.clearSearch",
+          "when": "view == lipdExplorer && lipd.explorerHasSearch",
+          "group": "navigation"
+        }
       ]
     },
     "languages": [
@@ -140,6 +207,16 @@
     "capabilities": {
       "untrustedWorkspaces": {
         "supported": true
+      }
+    },
+    "configuration": {
+      "title": "LiPD",
+      "properties": {
+        "lipd.graphDbUrl": {
+          "type": "string",
+          "default": "https://linkedearth.graphdb.mint.isi.edu/repositories/LiPD",
+          "description": "URL of the GraphDB SPARQL endpoint for remote LiPD datasets"
+        }
       }
     }
   },
@@ -183,7 +260,7 @@
     "@mui/x-data-grid": "^7.28.3",
     "@mui/x-tree-view": "^7.28.1",
     "@types/mapbox-gl": "^3.4.1",
-    "lipdjs": "^0.0.7",
+    "lipdjs": "../lipdjs",
     "mapbox-gl": "^3.11.0",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",

@@ -13,7 +13,7 @@ interface Edit {
 }
 
 // Track active editors and documents
-type EditorInstance = {
+export type EditorInstance = {
     document: LiPDDocument;
     webviewPanel: vscode.WebviewPanel;
 };
@@ -102,39 +102,26 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
     // Track all open editor instances
     private editorInstances: Map<string, EditorInstance> = new Map();
     
+    // Make static register method obsolete since we're creating the instance directly now
     public static register(context: vscode.ExtensionContext, lipdHandler: LiPDFileHandler): vscode.Disposable {
+        // This is kept for backward compatibility only
         const provider = new LiPDEditorProvider(context, lipdHandler);
-        
-        // Register the editor provider
-        const providerRegistration = vscode.window.registerCustomEditorProvider('lipd-vscode.lipdEditor', provider, {
-            webviewOptions: {
-                retainContextWhenHidden: true
-            },
+        return vscode.window.registerCustomEditorProvider('lipd-vscode.lipdEditor', provider, {
+            webviewOptions: { retainContextWhenHidden: true },
             supportsMultipleEditorsPerDocument: false
         });
-        
-        // Register the global undo/redo commands that delegate to the active editor
-        const undoRegistration = vscode.commands.registerCommand('lipd-vscode.undo', () => {
-            provider.handleUndo();
-        });
-        
-        const redoRegistration = vscode.commands.registerCommand('lipd-vscode.redo', () => {
-            provider.handleRedo();
-        });
-        
-        return vscode.Disposable.from(providerRegistration, undoRegistration, redoRegistration);
     }
 
     private _onDidChangeCustomDocument = new vscode.EventEmitter<vscode.CustomDocumentEditEvent<LiPDDocument>>();
     public readonly onDidChangeCustomDocument = this._onDidChangeCustomDocument.event;
 
     constructor(
-        private readonly context: vscode.ExtensionContext,
-        private readonly lipdHandler: LiPDFileHandler
+        public readonly context: vscode.ExtensionContext,
+        public readonly lipdHandler: LiPDFileHandler
     ) {}
     
     // Handle undo for the active editor
-    private handleUndo() {
+    public handleUndo() {
         const activeEditor = this.getActiveEditorInstance();
         if (activeEditor && activeEditor.document.canUndo()) {
             this.performUndo(activeEditor.document, activeEditor.webviewPanel);
@@ -142,7 +129,7 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
     }
     
     // Handle redo for the active editor
-    private handleRedo() {
+    public handleRedo() {
         const activeEditor = this.getActiveEditorInstance();
         if (activeEditor && activeEditor.document.canRedo()) {
             this.performRedo(activeEditor.document, activeEditor.webviewPanel);
@@ -150,7 +137,7 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
     }
     
     // Helper to find the active editor instance
-    private getActiveEditorInstance(): EditorInstance | undefined {
+    public getActiveEditorInstance(): EditorInstance | undefined {
         // Find the active editor
         for (const [_, instance] of this.editorInstances) {
             if (instance.webviewPanel.active) {
@@ -162,43 +149,43 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
     
     // Perform undo operation
     private async performUndo(document: LiPDDocument, webviewPanel: vscode.WebviewPanel) {
-        const previousDataset = await document.undo();
-        if (previousDataset) {
-            // Notify the webview of the undo
-            webviewPanel.webview.postMessage({
-                type: 'datasetChanged',
-                data: previousDataset,
-                source: 'undo'
-            });
-            
-            // Update the undo/redo state
-            webviewPanel.webview.postMessage({
-                type: 'undoRedoStateChanged',
-                canUndo: document.canUndo(),
-                canRedo: document.canRedo()
-            });
-        }
-    }
+                    const previousDataset = await document.undo();
+                    if (previousDataset) {
+                        // Notify the webview of the undo
+                        webviewPanel.webview.postMessage({
+                            type: 'datasetChanged',
+                            data: previousDataset,
+                            source: 'undo'
+                        });
+                        
+                        // Update the undo/redo state
+                        webviewPanel.webview.postMessage({
+                            type: 'undoRedoStateChanged',
+                            canUndo: document.canUndo(),
+                            canRedo: document.canRedo()
+                        });
+                    }
+                }
     
     // Perform redo operation
     private async performRedo(document: LiPDDocument, webviewPanel: vscode.WebviewPanel) {
-        const nextDataset = await document.redo();
-        if (nextDataset) {
-            // Notify the webview of the redo
-            webviewPanel.webview.postMessage({
-                type: 'datasetChanged',
-                data: nextDataset,
-                source: 'redo'
-            });
-            
-            // Update the undo/redo state
-            webviewPanel.webview.postMessage({
-                type: 'undoRedoStateChanged',
-                canUndo: document.canUndo(),
-                canRedo: document.canRedo()
-            });
-        }
-    }
+                    const nextDataset = await document.redo();
+                    if (nextDataset) {
+                        // Notify the webview of the redo
+                        webviewPanel.webview.postMessage({
+                            type: 'datasetChanged',
+                            data: nextDataset,
+                            source: 'redo'
+                        });
+                        
+                        // Update the undo/redo state
+                        webviewPanel.webview.postMessage({
+                            type: 'undoRedoStateChanged',
+                            canUndo: document.canUndo(),
+                            canRedo: document.canRedo()
+                        });
+                    }
+                }
 
     // Helper to get current theme
     private getCurrentTheme(): 'light' | 'dark' | 'high-contrast' {
@@ -241,131 +228,16 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
         webviewPanel: vscode.WebviewPanel,
         _token: vscode.CancellationToken
     ): Promise<void> {
-        // Store this editor instance
-        const editorKey = document.uri.toString();
-        this.editorInstances.set(editorKey, { document, webviewPanel });
+        // Store the editor instance
+        this.editorInstances.set(document.uri.toString(), { document, webviewPanel });
         
-        // Clean up when this editor is closed
+        // Handle panel close
         webviewPanel.onDidDispose(() => {
-            this.editorInstances.delete(editorKey);
+            this.editorInstances.delete(document.uri.toString());
         });
         
-        // Set up the webview options
-        webviewPanel.webview.options = {
-            enableScripts: true,
-            localResourceRoots: [
-                vscode.Uri.joinPath(this.context.extensionUri, 'media')
-            ]
-        };
-
-        // Set up the HTML content for the webview
-        webviewPanel.webview.html = this.getHtmlForWebview(webviewPanel.webview);
-
-        // Watch for theme changes
-        this.context.subscriptions.push(
-            vscode.window.onDidChangeActiveColorTheme(theme => {
-                let themeMode: 'light' | 'dark' | 'high-contrast';
-                
-                if (theme.kind === vscode.ColorThemeKind.Light) {
-                    themeMode = 'light';
-                } else if (theme.kind === vscode.ColorThemeKind.Dark) {
-                    themeMode = 'dark';
-                } else {
-                    themeMode = 'high-contrast';
-                }
-                
-                // Send the theme to the webview
-                webviewPanel.webview.postMessage({ 
-                    type: 'themeChanged', 
-                    theme: themeMode 
-                });
-            })
-        );
-
-        // Message handlers
-        webviewPanel.webview.onDidReceiveMessage(async (message: any) => {
-            if (message.type === 'ready') {
-                console.log('Webview is ready, sending dataset');
-                try {                    
-                    // Send the dataset to the webview
-                    webviewPanel.webview.postMessage({ 
-                        type: 'datasetLoaded', 
-                        data: document.dataset
-                    });
-
-                    // Send the theme to the webview
-                    webviewPanel.webview.postMessage({
-                        type: 'themeChanged',
-                        theme: this.getCurrentTheme()
-                    });
-
-                } catch (error) {
-                    console.error('Error serializing dataset:', error);
-                    webviewPanel.webview.postMessage({ 
-                        type: 'error', 
-                        error: 'Failed to load dataset' 
-                    });
-                }
-            }
-            else if (message.type === 'datasetUpdated') {
-                console.log('Received updated dataset');
-                const updatedDataset = Dataset.fromDictionary(message.data);
-                
-                // Apply the edit and track it in the history
-                await document.makeEdit(updatedDataset, message.label || 'Edit');
-                
-                // Fire the document change event to show the modification indicator (dot)
-                this._onDidChangeCustomDocument.fire({
-                    document,
-                    undo: async () => {
-                        await this.performUndo(document, webviewPanel);
-                    },
-                    redo: async () => {
-                        await this.performRedo(document, webviewPanel);
-                    }
-                });
-                
-                // Update the undo/redo state in the webview
-                webviewPanel.webview.postMessage({
-                    type: 'undoRedoStateChanged',
-                    canUndo: document.canUndo(),
-                    canRedo: document.canRedo()
-                });
-            }
-            else if (message.type === 'undo') {
-                if (document.canUndo()) {
-                    await this.performUndo(document, webviewPanel);
-                }
-            }
-            else if (message.type === 'redo') {
-                if (document.canRedo()) {
-                    await this.performRedo(document, webviewPanel);
-                }
-            }
-            else if (message.type === 'executeCommand') {
-                // Execute a VSCode command
-                console.log(`Executing VS Code command: ${message.command}`);
-                try {
-                    await vscode.commands.executeCommand(message.command);
-                } catch (error) {
-                    console.error(`Error executing VS Code command ${message.command}:`, error);
-                    webviewPanel.webview.postMessage({
-                        type: 'error',
-                        error: `Failed to execute command: ${error instanceof Error ? error.message : String(error)}`
-                    });
-                    
-                    if (message.command === 'workbench.action.files.save' || 
-                        message.command === 'workbench.action.files.saveAs') {
-                        // Notify webview of save failure
-                        webviewPanel.webview.postMessage({
-                            type: 'saveComplete',
-                            success: false,
-                            error: error instanceof Error ? error.message : String(error)
-                        });
-                    }
-                }
-            }
-        });
+        // Set up the webview
+        await this.setupWebview(document, webviewPanel);
     }
 
     private getHtmlForWebview(webview: vscode.Webview): string {
@@ -533,6 +405,353 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
     public dispose() {
         // Clear the editor instances map
         this.editorInstances.clear();
+    }
+
+    // Method to open a remote dataset directly from memory
+    public async openRemoteDataset(dataset: Dataset | null, datasetName: string): Promise<vscode.WebviewPanel> {
+        console.log(`Opening remote dataset: ${datasetName}`);
+        
+        // Create a virtual URI for this remote dataset
+        const virtualUri = vscode.Uri.parse(`lipd-remote:/${datasetName}.lpd`);
+        
+        try {
+            // Create a placeholder document with either the dataset or an empty one
+            // If dataset is null (loading state), create a minimal empty dataset
+            const emptyDataset = dataset || new Dataset();
+            
+            // If we're in loading state, ensure the dataset is properly empty
+            if (!dataset) {
+                // Strip properties that might trigger UI updates
+                Object.keys(emptyDataset).forEach(key => {
+                    if (key !== 'constructor' && typeof (emptyDataset as any)[key] !== 'function') {
+                        delete (emptyDataset as any)[key];
+                    }
+                });
+            }
+            
+            const document = new LiPDDocument(virtualUri, emptyDataset, emptyDataset);
+            
+            // Create a new webview panel
+            const webviewPanel = vscode.window.createWebviewPanel(
+                'lipd-vscode.lipdEditor',
+                `${datasetName} (Remote)`,
+                vscode.ViewColumn.Active,
+                {
+                    enableScripts: true,
+                    retainContextWhenHidden: true,
+                    localResourceRoots: [
+                        vscode.Uri.joinPath(this.context.extensionUri, 'out'),
+                        vscode.Uri.joinPath(this.context.extensionUri, 'media')
+                    ]
+                }
+            );
+            
+            // Store the editor instance
+            this.editorInstances.set(virtualUri.toString(), { document, webviewPanel });
+            
+            // Handle panel close
+            webviewPanel.onDidDispose(() => {
+                this.editorInstances.delete(virtualUri.toString());
+            });
+            
+            // Set up the webview - this handles the initialization
+            await this.setupWebview(document, webviewPanel);
+            
+            // If dataset is null, send a loading state message
+            if (!dataset) {
+                webviewPanel.webview.postMessage({
+                    type: 'loading',
+                    datasetName: datasetName,
+                    message: 'Connecting to GraphDB and fetching dataset...'
+                });
+            }
+            
+            // Show the panel
+            webviewPanel.reveal(vscode.ViewColumn.Active);
+            
+            return webviewPanel;
+        } catch (error) {
+            console.error(`Error opening remote dataset: ${error instanceof Error ? error.message : String(error)}`);
+            vscode.window.showErrorMessage(`Failed to open remote dataset: ${datasetName}`);
+            throw error;
+        }
+    }
+    
+    // Method to update a remote dataset when it's loaded
+    public async updateRemoteDataset(webviewPanel: vscode.WebviewPanel, dataset: Dataset, datasetName: string): Promise<void> {
+        try {
+            // Find the document associated with this webview panel
+            let document: LiPDDocument | undefined;
+            
+            for (const [_, instance] of this.editorInstances) {
+                if (instance.webviewPanel === webviewPanel) {
+                    document = instance.document;
+                    break;
+                }
+            }
+            
+            if (!document) {
+                throw new Error('Could not find document for webview panel');
+            }
+            
+            // Update the document with the loaded dataset
+            document.dataset = dataset;
+            document.updated_dataset = dataset;
+            
+            // Send the dataset to the webview
+            webviewPanel.webview.postMessage({
+                type: 'init',
+                data: dataset,
+                canUndo: document.canUndo(),
+                canRedo: document.canRedo(),
+                isRemote: true,
+                datasetName: datasetName
+            });
+        } catch (error) {
+            console.error(`Error updating remote dataset: ${error instanceof Error ? error.message : String(error)}`);
+            webviewPanel.webview.postMessage({
+                type: 'error',
+                error: `Failed to load dataset: ${error instanceof Error ? error.message : String(error)}`
+            });
+        }
+    }
+    
+    // Setup the webview with necessary scripts and event handlers
+    private async setupWebview(document: LiPDDocument, webviewPanel: vscode.WebviewPanel): Promise<void> {
+        console.log('Setting up webview for document:', document.uri.toString());
+        
+        // Set up the webview options
+        webviewPanel.webview.options = {
+            enableScripts: true,
+            localResourceRoots: [
+                vscode.Uri.joinPath(this.context.extensionUri, 'out'),
+                vscode.Uri.joinPath(this.context.extensionUri, 'media')
+            ]
+        };
+        
+        // Set the webview's HTML content
+        webviewPanel.webview.html = this.getHtmlForWebview(webviewPanel.webview);
+        
+        // Store dataset for delayed initialization
+        const isRemote = document.uri.scheme === 'lipd-remote';
+        const datasetName = path.basename(document.uri.path, '.lpd');
+        
+        // Create a promise to track when the webview is ready
+        let resolveWebviewReady: () => void;
+        const webviewReady = new Promise<void>(resolve => {
+            resolveWebviewReady = resolve;
+        });
+        
+        // Watch for theme changes
+        this.context.subscriptions.push(
+            vscode.window.onDidChangeActiveColorTheme(theme => {
+                let themeMode: 'light' | 'dark' | 'high-contrast';
+                
+                if (theme.kind === vscode.ColorThemeKind.Light) {
+                    themeMode = 'light';
+                } else if (theme.kind === vscode.ColorThemeKind.Dark) {
+                    themeMode = 'dark';
+                } else {
+                    themeMode = 'high-contrast';
+                }
+                
+                // Send the theme to the webview
+                webviewPanel.webview.postMessage({
+                    type: 'themeChanged', 
+                    theme: themeMode 
+                });
+            })
+        );
+        
+        // Handle messages from the webview
+        webviewPanel.webview.onDidReceiveMessage(async (message: any) => {
+            try {
+                switch (message.type) {
+                    case 'ready':
+                        // Webview is ready, send initialization data
+                        console.log('Webview is ready, sending initialization data');
+                        
+                        // First send theme
+                        webviewPanel.webview.postMessage({
+                            type: 'themeChanged',
+                            theme: this.getCurrentTheme()
+                        });
+                        
+                        // Check if we should send dataset data now
+                        // For remote datasets that are loading, we'll skip sending the empty dataset
+                        // The updateRemoteDataset method will send the actual data when it's loaded
+                        const isEmptyRemote = isRemote && 
+                                            (!document.updated_dataset || 
+                                             Object.keys(document.updated_dataset).length === 0);
+                        
+                        if (!isEmptyRemote) {
+                            // Then send the dataset initialization (only for non-loading remote datasets)
+                            webviewPanel.webview.postMessage({
+                                type: 'init',
+                                data: document.updated_dataset,
+                                canUndo: document.canUndo(),
+                                canRedo: document.canRedo(),
+                                isRemote: isRemote,
+                                datasetName: datasetName
+                            });
+                        }
+                        
+                        // Resolve the ready promise
+                        resolveWebviewReady();
+                        break;
+                        
+                    case 'initError':
+                        console.error('Webview initialization error:', message.error);
+                        vscode.window.showErrorMessage(`Error initializing editor: ${message.error}`);
+                        break;
+                        
+                    case 'initComplete':
+                        console.log('Webview initialization complete');
+                        break;
+                        
+                    case 'datasetUpdated':
+                        console.log('Received updated dataset');
+                        const updatedDataset = message.data; // Dataset object from webview
+                        
+                        // Apply the edit and track it in the history
+                        await document.makeEdit(updatedDataset, message.label || 'Edit');
+                        
+                        // Fire the document change event to show the modification indicator (dot)
+                        this._onDidChangeCustomDocument.fire({
+                            document,
+                            undo: async () => {
+                                await this.performUndo(document, webviewPanel);
+                            },
+                            redo: async () => {
+                                await this.performRedo(document, webviewPanel);
+                            }
+                        });
+                        
+                        // Update the undo/redo state in the webview
+                        webviewPanel.webview.postMessage({
+                            type: 'undoRedoStateChanged',
+                            canUndo: document.canUndo(),
+                            canRedo: document.canRedo()
+                        });
+                        break;
+                        
+                    case 'undo':
+                        if (document.canUndo()) {
+                            await this.performUndo(document, webviewPanel);
+                        }
+                        break;
+                        
+                    case 'redo':
+                        if (document.canRedo()) {
+                            await this.performRedo(document, webviewPanel);
+                        }
+                        break;
+                        
+                    case 'save':
+                        // For remote datasets, offer to save locally
+                        if (document.uri.scheme === 'lipd-remote') {
+                            await this.saveRemoteDocument(document, webviewPanel);
+                        } else {
+                            await this.saveCustomDocument(document);
+                            
+                            // Notify webview of save success
+                            webviewPanel.webview.postMessage({
+                                type: 'saveComplete',
+                                success: true
+                            });
+                        }
+                        break;
+                        
+                    case 'executeCommand':
+                        // Execute a VSCode command
+                        console.log(`Executing VS Code command: ${message.command}`);
+                        try {
+                            // For Save As command on remote datasets, use our custom method
+                            if (message.command === 'workbench.action.files.saveAs' && 
+                                document.uri.scheme === 'lipd-remote') {
+                                await this.saveRemoteDocument(document, webviewPanel);
+                            } else {
+                                await vscode.commands.executeCommand(message.command);
+                            }
+                        } catch (error) {
+                            console.error(`Error executing VS Code command ${message.command}:`, error);
+                            webviewPanel.webview.postMessage({
+                                type: 'error',
+                                error: `Failed to execute command: ${error instanceof Error ? error.message : String(error)}`
+                            });
+                            
+                            if (message.command === 'workbench.action.files.save' || 
+                                message.command === 'workbench.action.files.saveAs') {
+                                // Notify webview of save failure
+                                webviewPanel.webview.postMessage({
+                                    type: 'saveComplete',
+                                    success: false,
+                                    error: error instanceof Error ? error.message : String(error)
+                                });
+                            }
+                        }
+                        break;
+                        
+                    default:
+                        console.log(`Unknown message type: ${message.type}`);
+                }
+            } catch (error) {
+                console.error('Error handling webview message:', error);
+                webviewPanel.webview.postMessage({
+                    type: 'error',
+                    error: `Error handling message: ${error instanceof Error ? error.message : String(error)}`
+                });
+            }
+        });
+    }
+
+    // Method to save a remote dataset (not associated with a local file)
+    async saveRemoteDocument(document: LiPDDocument, webviewPanel: vscode.WebviewPanel): Promise<void> {
+        try {
+            console.log('Saving remote document:', document.uri.toString());
+            
+            // Show save dialog to get destination
+            const saveUri = await vscode.window.showSaveDialog({
+                defaultUri: vscode.Uri.file(document.uri.path),
+                filters: { 'LiPD Files': ['lpd'] }
+            });
+            
+            if (!saveUri) {
+                // User cancelled the save dialog
+                return;
+            }
+            
+            // Write the file
+            await this.lipdHandler.writeLiPDFile(saveUri.fsPath, document.updated_dataset);
+            console.log('Remote document saved successfully to:', saveUri.fsPath);
+            
+            // Notify the user
+            vscode.window.showInformationMessage(`Dataset saved to ${saveUri.fsPath}`);
+            
+            // Notify webview of save success
+            webviewPanel.webview.postMessage({
+                type: 'saveComplete',
+                success: true
+            });
+        } catch (error) {
+            console.error('Error saving remote document:', error);
+            
+            // Show error message
+            vscode.window.showErrorMessage(`Failed to save dataset: ${error instanceof Error ? error.message : String(error)}`);
+            
+            // Notify webview of save failure
+            webviewPanel.webview.postMessage({
+                type: 'saveComplete',
+                success: false,
+                error: error instanceof Error ? error.message : String(error)
+            });
+            
+            // Re-throw error for caller handling
+            if (error instanceof Error) {
+                throw new Error(`Failed to save remote LiPD file: ${error.message}`);
+            }
+            throw new Error('Failed to save remote LiPD file: Unknown error');
+        }
     }
 }
 

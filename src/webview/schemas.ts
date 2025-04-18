@@ -202,7 +202,7 @@ export const changeLogEntrySchema: Schema = {
 
 export const changeLogSchema: Schema = {
     fields: {
-        contributor: {type: 'string', label: 'Curator'},
+        curator: {type: 'string', label: 'Curator'},
         timestamp: {type: 'string', label: 'Timestamp'},
         version: {type: 'string', label: 'Version'},
         lastVersion: {type: 'string', label: 'Last Version'},
@@ -336,10 +336,16 @@ export const variableSchema: Schema = {
             schema: paleoVariableSchema 
         },  
         variableId: { type: 'string', label: 'Variable ID' },
-        variableType: { type: 'string', label: 'Variable Type' },  
-        columnNumber: { type: 'number', label: 'Column Number' },  
-        description: { type: 'string', label: 'Description' },  
-        notes: { type: 'string', label: 'Notes' },  
+        description: { type: 'string', label: 'Description' },
+        notes: { type: 'string', label: 'Notes' },
+        units: { type: 'enum', label: 'Units', schema: paleoUnitSchema },
+        archiveType: { 
+          type: 'enum', 
+          label: 'Archive Type',
+          schema: archiveTypeSchema
+        },
+        columnNumber: { type: 'number', label: 'Column Number' },
+        variableType: { type: 'string', label: 'Variable Type' },
         partOfCompilation: { 
           type: 'object', 
           label: 'Part of Compilation',
@@ -371,11 +377,6 @@ export const variableSchema: Schema = {
           type: 'object', 
           label: 'Resolution', 
           schema: resolutionSchema 
-        },
-        archiveType: { 
-          type: 'enum', 
-          label: 'Archive Type',
-          schema: archiveTypeSchema
         },
         interpretations: { 
           type: 'array', 

@@ -61,7 +61,7 @@ export const getChangeLogLabel = (changeLog: ChangeLog) : string => {
 };
 
 export const getChangeLogCuratorLabel = (changeLog: ChangeLog) : string => {
-    return changeLog.contributor || '';
+    return changeLog.curator || '';
 };
 
 export const getChangeLogEntryLabel = (changeLogEntry: Change) : string => {

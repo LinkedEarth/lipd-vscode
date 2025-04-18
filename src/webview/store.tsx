@@ -14,6 +14,8 @@ export const useLiPDStore = create<AppState>((set, get) => ({
     dataset: null,
     isLoading: false,
     isSaving: false,
+    isRemote: false,  // New state to track if the dataset is remote
+    datasetName: '',  // New state to store the dataset name
     
     // Undo/Redo state
     canUndo: false,
@@ -66,6 +68,10 @@ export const useLiPDStore = create<AppState>((set, get) => ({
         set({ isLoading });
     },
     
+    setLoadingMessage: (message: string) => {
+        set({ loadingMessage: message });
+    },
+    
     setThemeMode: (mode: ThemeMode) => {
         set({ themeMode: mode });
     },
@@ -87,7 +93,7 @@ export const useLiPDStore = create<AppState>((set, get) => ({
         // Request an undo operation from the extension
         vscode.postMessage({
             type: 'executeCommand',
-            command: 'workbench.action.editor.undo'
+            command: 'lipd-vscode.undo'
         });
     },
     
@@ -95,7 +101,7 @@ export const useLiPDStore = create<AppState>((set, get) => ({
         // Request a redo operation from the extension
         vscode.postMessage({
             type: 'executeCommand',
-            command: 'workbench.action.editor.redo'
+            command: 'lipd-vscode.redo'
         });
     },
     
@@ -250,5 +256,14 @@ export const useLiPDStore = create<AppState>((set, get) => ({
         });
     },
     
-    setExpandedNodes: (nodes) => set({ expandedNodes: nodes })
+    setExpandedNodes: (nodes) => set({ expandedNodes: nodes }),
+    
+    // Add setters for the new properties
+    setIsRemote: (isRemote: boolean) => {
+        set({ isRemote });
+    },
+    
+    setDatasetName: (datasetName: string) => {
+        set({ datasetName });
+    },
 }));

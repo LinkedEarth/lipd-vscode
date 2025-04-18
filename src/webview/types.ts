@@ -1,10 +1,17 @@
 import { Dataset } from "lipdjs";
 
 // Interface for VS Code message types
-export interface VSCodeMessage {
-    type: string;
-    [key: string]: any;
-}
+export type VSCodeMessage = 
+    | { type: 'init'; data: any; canUndo?: boolean; canRedo?: boolean; isRemote?: boolean; datasetName?: string }
+    | { type: 'ready' }
+    | { type: 'datasetLoaded'; data: any }
+    | { type: 'error'; error: string }
+    | { type: 'loading'; datasetName: string; message: string }
+    | { type: 'saveComplete'; success: boolean; error?: string }
+    | { type: 'validation'; results: { errors?: Record<string, any>; warnings?: Record<string, any> } }
+    | { type: 'themeChanged'; theme: ThemeMode }
+    | { type: 'datasetChanged'; data: any; source: string }
+    | { type: 'undoRedoStateChanged'; canUndo: boolean; canRedo: boolean };
 
 // Interface for notification state
 export interface Notification {
@@ -16,10 +23,13 @@ export type ThemeMode = 'light' | 'dark' | 'high-contrast';
 
 // Interface for app state
 export interface AppState {
-    // Dataset state
+    // Dataset and loading state
     dataset: Dataset | null;
     isLoading: boolean;
     isSaving: boolean;
+    isRemote: boolean;  // Flag to indicate if dataset is from remote source
+    datasetName: string; // Name of the dataset (especially for remote datasets)
+    loadingMessage?: string;
     
     // Undo/Redo state
     canUndo: boolean;
@@ -36,29 +46,32 @@ export interface AppState {
     validationErrors: Record<string, any>;
     validationWarnings: Record<string, any>;
     
-    // Status notifications
-    notification: Notification | null;
+    // Status notification
+    notification: { type: string; message: string } | null;
     
     // Actions
     initialize: () => void;
-    setDataset: (dataset: any) => void;
-    setDatasetSilently: (dataset: any) => void;
     setIsLoading: (isLoading: boolean) => void;
+    setLoadingMessage: (message: string) => void;
     setThemeMode: (mode: ThemeMode) => void;
+    setDataset: (dataset: Dataset | null) => void;
+    setDatasetSilently: (dataset: Dataset | null) => void;
+    undo: () => void;
+    redo: () => void;
+    setUndoRedoState: (canUndo: boolean, canRedo: boolean) => void;
+    setSelectedNode: (node: string | null) => void;
+    toggleExpandNode: (nodeId: string) => void;
     setError: (error: string) => void;
     setSaveComplete: (success: boolean, error?: string) => void;
     setValidationResults: (results: { errors?: Record<string, any>; warnings?: Record<string, any> }) => void;
     saveDataset: () => Promise<void>;
     saveDatasetAs: () => Promise<void>;
-    undo: () => void;
-    redo: () => void;
-    setUndoRedoState: (canUndo: boolean, canRedo: boolean) => void;
-    setSelectedNode: (node: string | null) => void;
-    setExpandedNodes: (nodes: Set<string>) => void;
-    toggleExpandNode: (nodeId: string) => void;
     toggleRightPanel: () => void;
     setSelectedTab: (tab: number) => void;
-    updateDataset: (field: string | string[], value: any) => void;
+    updateDataset: (field: string, value: any) => void;
+    setExpandedNodes: (nodes: Set<string>) => void;
+    setIsRemote: (isRemote: boolean) => void;
+    setDatasetName: (datasetName: string) => void;
 }
 
 export interface Model {

@@ -8,6 +8,7 @@ import { EditorPanel } from './components/EditorPanel';
 import AppBarBreadcrumbs from './components/AppBarBreadcrumbs';
 import AppBarActions from './components/AppBarActions';
 import { RouterProvider } from './router';
+import { getVSCodeAPI, postMessage } from './vscode';
 
 // Set up initialTheme from window if available
 declare global {
@@ -22,13 +23,92 @@ window.addEventListener('message', (event: MessageEvent) => {
     console.log('Received message from VS Code:', message.type);
     
     switch (message.type) {
-        case 'ready':
-            // Set loading state to true
+        case 'init':
+            // Initialize dataset with data from VS Code
+            console.log('Received init message with dataset:', message.data ? 'data present' : 'no data');
+            if (message.data) {
+                try {
+                    // Convert the plain object to a Dataset instance
+                    const dataset = Dataset.fromDictionary(message.data);
+                    
+                    // Update the store with the dataset
+                    useLiPDStore.getState().setDataset(dataset);
+                    
+                    // Set loading state to false
+                    useLiPDStore.getState().setIsLoading(false);
+                    
+                    // Update undo/redo state
+                    useLiPDStore.getState().setUndoRedoState(
+                        message.canUndo === true, 
+                        message.canRedo === true
+                    );
+                    
+                    // Set remote flag
+                    if (message.isRemote) {
+                        useLiPDStore.getState().setIsRemote(true);
+                        if (message.datasetName) {
+                            useLiPDStore.getState().setDatasetName(message.datasetName);
+                        }
+                    }
+                    
+                    // Send initialization complete message
+                    postMessage({ type: 'initComplete' });
+                } catch (error) {
+                    console.error('Error processing dataset:', error);
+                    useLiPDStore.getState().setError('Failed to parse dataset data: ' + 
+                        (error instanceof Error ? error.message : String(error)));
+                    // Set loading state to false even if there's an error
+                    useLiPDStore.getState().setIsLoading(false);
+                    
+                    // Send error message
+                    postMessage({ 
+                        type: 'initError', 
+                        error: (error instanceof Error ? error.message : String(error))
+                    });
+                }
+            } else {
+                console.error('No dataset data received in init message');
+                // No data received, set loading to false
+                useLiPDStore.getState().setIsLoading(false);
+                
+                // Send error message
+                postMessage({ 
+                    type: 'initError', 
+                    error: 'No dataset data received in init message'
+                });
+            }
+            break;
+            
+        case 'loading':
+            // Show loading state for remote datasets
+            console.log('Received loading message for dataset:', message.datasetName);
+            
+            // Set the dataset name if provided
+            if (message.datasetName) {
+                useLiPDStore.getState().setDatasetName(message.datasetName);
+            }
+            
+            // Set dataset to null to ensure forms don't show
+            useLiPDStore.getState().setDataset(null);
+            
+            // Set loading state to true and show loading message
             useLiPDStore.getState().setIsLoading(true);
+            if (message.message) {
+                useLiPDStore.getState().setLoadingMessage(message.message);
+            }
+            
+            // Set remote flag
+            useLiPDStore.getState().setIsRemote(true);
+            break;
+            
+        case 'ready':
+            // VS Code notifying us it's ready - this shouldn't happen normally
+            console.log('Received ready message from VS Code - this is unusual');
             break;
             
         case 'datasetLoaded':
-            // Initialize dataset with data from VS Code
+            // Legacy message type, handle same as init
+            console.log('Received legacy datasetLoaded message, treating as init');
             if (message.data) {
                 try {
                     // Convert the plain object to a Dataset instance

@@ -689,24 +689,57 @@ export const useRouter = () => {
 // Router component
 export const Router: React.FC = () => {
   const { currentPath } = useRouter();
-  const { updateDataset, isLoading, dataset } = useLiPDStore(state => ({
+  const { updateDataset, isLoading, dataset, loadingMessage, datasetName } = useLiPDStore(state => ({
     updateDataset: state.updateDataset,
     isLoading: state.isLoading,
-    dataset: state.dataset
+    dataset: state.dataset,
+    loadingMessage: state.loadingMessage,
+    datasetName: state.datasetName
   }));
   
   // Show loading indicator while dataset is loading
-  if (isLoading || !dataset) {
+  if (isLoading) {
     return (
       <Box sx={{ 
         display: 'flex', 
+        flexDirection: 'column',
         justifyContent: 'center', 
         alignItems: 'center', 
         height: '100%', 
-        width: '100%'
+        width: '100%',
+        p: 3
       }}>
-        <CircularProgress />
-        <Typography sx={{ ml: 2 }}>Loading dataset...</Typography>
+        <CircularProgress size={40} />
+        <Typography sx={{ mt: 2, mb: 1 }} variant="h6">
+          {datasetName ? `Loading ${datasetName}...` : 'Loading dataset...'}
+        </Typography>
+        {loadingMessage && (
+          <Typography variant="body2" color="text.secondary">
+            {loadingMessage}
+          </Typography>
+        )}
+      </Box>
+    );
+  }
+  
+  // If no dataset is available, show a message
+  if (!dataset) {
+    return (
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: 'column',
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100%', 
+        width: '100%',
+        p: 3
+      }}>
+        <Typography variant="h6">
+          No dataset available
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Please select a dataset to view
+        </Typography>
       </Box>
     );
   }

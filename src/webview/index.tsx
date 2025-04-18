@@ -16,3 +16,6 @@ ReactDOM.render(
     </React.StrictMode>,
     rootElement
 );
+
+// Add console.log statements to track initialization
+console.log('Webview script loaded');

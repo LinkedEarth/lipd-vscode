@@ -2,6 +2,14 @@
 
 All notable changes to the "LiPD File Support" extension will be documented in this file.
 
+## [1.1.0] - 2024-07-XX
+
+### Added
+- LiPD Explorer view for browsing remote datasets from a GraphDB SPARQL endpoint
+- Ability to connect to and view datasets from a remote GraphDB repository
+- Configuration setting for customizing the GraphDB endpoint URL
+- Status bar item for quick access to GraphDB connection settings
+
 ## [1.0.0] - 2024-07-XX
 
 ### Added

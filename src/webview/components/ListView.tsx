@@ -49,9 +49,9 @@ const ListView: React.FC<ListViewProps> = ({
             setEditValue(String(items[index]));
         } else if (pathPrefix) {
             setSelectedNode(`${pathPrefix}.${index}`);
-            onEdit(index);
+            // onEdit(index);
         } else {
-            onEdit(index);
+            // onEdit(index);
         }
     };
 
