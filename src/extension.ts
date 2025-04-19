@@ -112,39 +112,6 @@ export function activate(context: vscode.ExtensionContext) {
     );
     context.subscriptions.push(debugCommand);
     
-    // Register commands to intercept save and save-as
-    const saveCommand = vscode.commands.registerCommand('workbench.action.files.save', async () => {
-        const activeEditor = editorProviderInstance.getActiveEditorInstance();
-        if (activeEditor && activeEditor.document.uri.scheme === 'lipd-remote') {
-            // For remote datasets, use our custom save method
-            await editorProviderInstance.saveRemoteDocument(
-                activeEditor.document, 
-                activeEditor.webviewPanel
-            );
-            return;
-        }
-        
-        // For regular files, pass through to original command
-        await vscode.commands.executeCommand('_workbench.action.files.save');
-    });
-    context.subscriptions.push(saveCommand);
-    
-    const saveAsCommand = vscode.commands.registerCommand('workbench.action.files.saveAs', async () => {
-        const activeEditor = editorProviderInstance.getActiveEditorInstance();
-        if (activeEditor && activeEditor.document.uri.scheme === 'lipd-remote') {
-            // For remote datasets, use our custom save method
-            await editorProviderInstance.saveRemoteDocument(
-                activeEditor.document, 
-                activeEditor.webviewPanel
-            );
-            return;
-        }
-        
-        // For regular files, pass through to original command
-        await vscode.commands.executeCommand('_workbench.action.files.saveAs');
-    });
-    context.subscriptions.push(saveAsCommand);
-    
     logger.debug('LiPD Extension initialization complete');
 }
 

@@ -161,10 +161,9 @@ export const useLiPDStore = create<AppState>((set, get) => ({
         // Set saving state to true
         set({ isSaving: true });
         
-        // Request a save operation from the extension
+        // Directly request a save operation instead of executing a command
         vscode.postMessage({
-            type: 'executeCommand',
-            command: 'workbench.action.files.save'
+            type: 'save'
         });
         
         return Promise.resolve();

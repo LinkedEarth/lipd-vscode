@@ -2,7 +2,7 @@
   "name": "lipd-vscode",
   "displayName": "LiPD File Support",
   "description": "Support for reading and writing LiPD (Linked Paleo Data) files in VSCode",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "publisher": "karyalimited",
   "author": {
     "name": "Varun Ratnakar",
@@ -38,7 +38,7 @@
       "activitybar": [
         {
           "id": "lipd-explorer",
-          "title": "LiPD Explorer",
+          "title": "LiPD GraphDB Explorer",
           "icon": "media/lipd-icon.png"
         }
       ]
@@ -47,9 +47,9 @@
       "lipd-explorer": [
         {
           "id": "lipdExplorer",
-          "name": "GraphDB Explorer",
+          "name": "LiPD GraphDB Explorer",
           "icon": "media/lipd-icon.png",
-          "contextualTitle": "LiPD Explorer"
+          "contextualTitle": "LiPD GraphDB Explorer"
         }
       ]
     },

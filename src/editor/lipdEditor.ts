@@ -289,21 +289,51 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
 
     async saveCustomDocument(document: LiPDDocument): Promise<void> {
         try {
-            console.log('Saving document:', document.uri.fsPath);
+            console.log('Saving document:', document.uri.toString());
             
-            await this.lipdHandler.writeLiPDFile(document.uri.fsPath, document.updated_dataset);
-            console.log('Document saved successfully');
-            
-            // Find the webview and notify it of successful save
+            // Find the webview for this document
+            let webviewPanel: vscode.WebviewPanel | undefined;
             for (const [_, instance] of this.editorInstances) {
                 if (instance.document === document) {
-                    instance.webviewPanel.webview.postMessage({
-                        type: 'saveComplete',
-                        success: true
-                    });
+                    webviewPanel = instance.webviewPanel;
                     break;
                 }
             }
+            
+            if (!webviewPanel) {
+                throw new Error('Could not find webview panel for document');
+            }
+            
+            // For remote datasets, prompt for a save location
+            if (document.uri.scheme === 'lipd-remote') {
+                // Show save dialog to get destination
+                const saveUri = await vscode.window.showSaveDialog({
+                    defaultUri: vscode.Uri.file(document.uri.path),
+                    filters: { 'LiPD Files': ['lpd'] }
+                });
+                
+                if (!saveUri) {
+                    // User cancelled the save dialog
+                    return;
+                }
+                
+                // Write the file
+                await this.lipdHandler.writeLiPDFile(saveUri.fsPath, document.updated_dataset);
+                console.log('Remote document saved successfully to:', saveUri.fsPath);
+                
+                // Notify the user
+                vscode.window.showInformationMessage(`Dataset saved to ${saveUri.fsPath}`);
+            } else {
+                // For local files, save normally
+            await this.lipdHandler.writeLiPDFile(document.uri.fsPath, document.updated_dataset);
+                console.log('Document saved successfully');
+            }
+            
+            // Notify webview of successful save
+            webviewPanel.webview.postMessage({
+                type: 'saveComplete',
+                success: true
+            });
         } catch (error) {
             console.error('Error saving document:', error);
             
@@ -330,19 +360,31 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
         try {
             console.log('Saving document as:', destination.fsPath);
             
-            await this.lipdHandler.writeLiPDFile(destination.fsPath, document.updated_dataset);
-            console.log('Document saved successfully as:', destination.fsPath);
-            
-            // Find the webview and notify it of successful save
+            // Find the webview for this document
+            let webviewPanel: vscode.WebviewPanel | undefined;
             for (const [_, instance] of this.editorInstances) {
                 if (instance.document === document) {
-                    instance.webviewPanel.webview.postMessage({
-                        type: 'saveComplete',
-                        success: true
-                    });
+                    webviewPanel = instance.webviewPanel;
                     break;
                 }
             }
+            
+            if (!webviewPanel) {
+                throw new Error('Could not find webview panel for document');
+            }
+            
+            // For both remote and local documents, save to the specified destination
+            await this.lipdHandler.writeLiPDFile(destination.fsPath, document.updated_dataset);
+            console.log('Document saved successfully as:', destination.fsPath);
+            
+            // If this was a remote document, don't change its URI - it remains remote
+            // VS Code will handle opening the newly saved file if needed
+            
+            // Notify webview of successful save
+            webviewPanel.webview.postMessage({
+                type: 'saveComplete',
+                success: true
+            });
         } catch (error) {
             console.error('Error saving document as:', error);
             
@@ -611,7 +653,7 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
                         
                     case 'datasetUpdated':
                         console.log('Received updated dataset');
-                        const updatedDataset = message.data; // Dataset object from webview
+                        const updatedDataset = Dataset.fromDictionary(message.data); // Dataset object from webview
                         
                         // Apply the edit and track it in the history
                         await document.makeEdit(updatedDataset, message.label || 'Edit');
@@ -648,16 +690,15 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
                         break;
                         
                     case 'save':
-                        // For remote datasets, offer to save locally
-                        if (document.uri.scheme === 'lipd-remote') {
-                            await this.saveRemoteDocument(document, webviewPanel);
-                        } else {
+                        try {
+                            // Call saveCustomDocument directly instead of using the command
                             await this.saveCustomDocument(document);
-                            
-                            // Notify webview of save success
+                        } catch (error) {
+                            console.error('Error saving document:', error);
                             webviewPanel.webview.postMessage({
                                 type: 'saveComplete',
-                                success: true
+                                success: false,
+                                error: error instanceof Error ? error.message : String(error)
                             });
                         }
                         break;
@@ -666,11 +707,27 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
                         // Execute a VSCode command
                         console.log(`Executing VS Code command: ${message.command}`);
                         try {
+                            // For Save command, call saveCustomDocument directly
+                            if (message.command === 'workbench.action.files.save') {
+                                await this.saveCustomDocument(document);
+                            }
                             // For Save As command on remote datasets, use our custom method
-                            if (message.command === 'workbench.action.files.saveAs' && 
+                            else if (message.command === 'workbench.action.files.saveAs' && 
                                 document.uri.scheme === 'lipd-remote') {
                                 await this.saveRemoteDocument(document, webviewPanel);
-                            } else {
+                            } 
+                            // For Save As on local documents, show save dialog and use saveCustomDocumentAs
+                            else if (message.command === 'workbench.action.files.saveAs') {
+                                const saveUri = await vscode.window.showSaveDialog({
+                                    defaultUri: vscode.Uri.file(document.uri.fsPath),
+                                    filters: { 'LiPD Files': ['lpd'] }
+                                });
+                                
+                                if (saveUri) {
+                                    await this.saveCustomDocumentAs(document, saveUri);
+                                }
+                            }
+                            else {
                                 await vscode.commands.executeCommand(message.command);
                             }
                         } catch (error) {
