@@ -26,9 +26,6 @@ This extension provides support for reading and writing LiPD (Linked Paleo Data)
 ### Publications
 ![Publications](images/publications.png)
 
-### LiPD GraphDB Explorer
-![GraphDB Explorer Menu](images/graphdb-explorer-menu.png)
-
 ### GraphDB Remote Dataset Viewer
 ![GraphDB Remote Dataset](images/graphdb-remote-dataset.png)
 
@@ -53,21 +50,32 @@ You can install the extension directly from the VS Code Marketplace:
 - You can also right-click on a `.lpd` file and select "Open With..." > "LiPD Editor"
 - Browse and open remote datasets through the LiPD Explorer view in the activity bar
 
-### Using the LiPD Explorer:
-- Click on the LiPD logo in the activity bar to open the LiPD Explorer
+### Using the LiPD GraphDB Explorer:
+- Click on the LiPD logo in the activity bar to open the LiPD GraphDB Explorer
   ![GraphDB Explorer Menu](images/graphdb-explorer-menu.png)
+
 - Configure the GraphDB endpoint by clicking on the settings icon or through the status bar
   ![GraphDB URL Configuration](images/graphdb-url-configuration.png)
+
 - Browse available datasets from the configured GraphDB endpoint
+  
 - Use the search functionality to find specific datasets
   ![GraphDB Search](images/graphdb-search.png)
+  
 - Click on any dataset to open it directly from the remote database
   ![GraphDB Remote Dataset](images/graphdb-remote-dataset.png)
+
 - Use the refresh button to update the dataset list
+  
+- Save the LiPD file locally by clicking on "Save" or "Save As" icon
+  
+- Sync a remote (or Local) dataset with GraphDB by clicking on the "Sync" icon
+
 
 ### Creating New Files:
 - Create a new file with a `.lpd` extension
 - An empty dataset will be created automatically
+
 
 ### Editing:
 - Navigate through the dataset using the tree view

@@ -8,6 +8,7 @@ export type VSCodeMessage =
     | { type: 'error'; error: string }
     | { type: 'loading'; datasetName: string; message: string }
     | { type: 'saveComplete'; success: boolean; error?: string }
+    | { type: 'syncComplete'; success: boolean; syncCompleted?: boolean; error?: string }
     | { type: 'validation'; results: { errors?: Record<string, any>; warnings?: Record<string, any> } }
     | { type: 'themeChanged'; theme: ThemeMode }
     | { type: 'datasetChanged'; data: any; source: string }
@@ -27,9 +28,11 @@ export interface AppState {
     dataset: Dataset | null;
     isLoading: boolean;
     isSaving: boolean;
+    isSyncing: boolean;  // Added for GraphDB sync status
     isRemote: boolean;  // Flag to indicate if dataset is from remote source
     datasetName: string; // Name of the dataset (especially for remote datasets)
     loadingMessage?: string;
+    syncProgress?: number; // Optional progress indicator (0-100)
     
     // Undo/Redo state
     canUndo: boolean;
@@ -63,9 +66,11 @@ export interface AppState {
     toggleExpandNode: (nodeId: string) => void;
     setError: (error: string) => void;
     setSaveComplete: (success: boolean, error?: string) => void;
+    setSyncComplete: (success: boolean, error?: string) => void;
     setValidationResults: (results: { errors?: Record<string, any>; warnings?: Record<string, any> }) => void;
     saveDataset: () => Promise<void>;
     saveDatasetAs: () => Promise<void>;
+    syncDataset: () => Promise<void>;
     toggleRightPanel: () => void;
     setSelectedTab: (tab: number) => void;
     updateDataset: (field: string, value: any) => void;

@@ -703,6 +703,47 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
                         }
                         break;
                         
+                    case 'syncToGraphDB':
+                        try {
+                            console.log('Syncing document to GraphDB');
+                            
+                            // Get the GraphDB URL from settings
+                            const graphDbUrl = vscode.workspace.getConfiguration('lipd').get('graphDbUrl') as string;
+                            console.log('GraphDB URL:', graphDbUrl);
+
+                            if (!graphDbUrl) {
+                                throw new Error('GraphDB URL is not configured. Please set the lipd.graphDbUrl setting.');
+                            }
+                            
+                            // Call the writeDatasetToGraphDB method on the lipdHandler with both dataset and URL
+                            await this.lipdHandler.writeDatasetToGraphDB(document.updated_dataset, graphDbUrl);
+                            console.log('Document synced successfully to GraphDB');
+                            
+                            // Notify webview of successful sync
+                            webviewPanel.webview.postMessage({
+                                type: 'syncComplete',
+                                success: true,
+                                syncCompleted: true
+                            });
+                            
+                            // Notify the user
+                            vscode.window.showInformationMessage(`Dataset synced to GraphDB successfully`);
+                        } catch (error) {
+                            console.error('Error syncing document to GraphDB:', error);
+                            
+                            // Notify webview of sync failure
+                            webviewPanel.webview.postMessage({
+                                type: 'syncComplete',
+                                success: false,
+                                syncCompleted: false,
+                                error: error instanceof Error ? error.message : String(error)
+                            });
+                            
+                            // Show error message
+                            vscode.window.showErrorMessage(`Failed to sync dataset to GraphDB: ${error instanceof Error ? error.message : String(error)}`);
+                        }
+                        break;
+                        
                     case 'executeCommand':
                         // Execute a VSCode command
                         console.log(`Executing VS Code command: ${message.command}`);

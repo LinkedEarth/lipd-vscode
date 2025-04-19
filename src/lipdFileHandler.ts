@@ -102,6 +102,20 @@ export class LiPDFileHandler {
             throw new Error('Failed to write LiPD file: Unknown error');
         }
     }
+
+    public async writeDatasetToGraphDB(dataset: Dataset, graphDbUrl: string): Promise<void> {
+        logger.info('Writing dataset to GraphDB');
+        // Use lipdjs LiPD updateRemoteDatasets
+        const lipd = new LiPD();
+        lipd.setEndpoint(graphDbUrl);
+        logger.info("Loading dataset");
+        lipd.loadDatasets([dataset]);
+        
+        const dsnames = await lipd.getAllDatasetNames();
+        logger.info(`Dataset names: ${dsnames.join(', ')}`);
+        await lipd.updateRemoteDatasets(dsnames);
+        logger.info('Dataset written to GraphDB');
+    }
     
     private async saveWithCustomTempDir(filePath: string, dataset: Dataset): Promise<void> {
         // Create a custom temporary directory that we can ensure is writable

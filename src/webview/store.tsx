@@ -14,8 +14,10 @@ export const useLiPDStore = create<AppState>((set, get) => ({
     dataset: null,
     isLoading: false,
     isSaving: false,
+    isSyncing: false,
     isRemote: false,  // New state to track if the dataset is remote
     datasetName: '',  // New state to store the dataset name
+    syncProgress: 0,
     
     // Undo/Redo state
     canUndo: false,
@@ -150,6 +152,24 @@ export const useLiPDStore = create<AppState>((set, get) => ({
         });
     },
     
+    setSyncComplete: (success, error) => {
+        set({ 
+            isSyncing: false,
+            syncProgress: 0,
+            notification: success ? {
+                type: 'success',
+                message: 'Dataset synced to GraphDB successfully'
+            } : {
+                type: 'error',
+                message: error || 'Failed to sync dataset to GraphDB'
+            }
+        });
+    },
+
+    setSyncProgress: (progress: number) => {
+        set({ syncProgress: progress });
+    },
+
     setValidationResults: (results) => {
         set({
             validationErrors: results.errors || {},
@@ -177,6 +197,36 @@ export const useLiPDStore = create<AppState>((set, get) => ({
         vscode.postMessage({
             type: 'executeCommand',
             command: 'workbench.action.files.saveAs'
+        });
+        
+        return Promise.resolve();
+    },
+    
+    syncDataset: () => {
+        // Set syncing state to true
+        set({ 
+            isSyncing: true,
+            syncProgress: 10, // Initial progress indicator
+            notification: {
+                type: 'info',
+                message: 'Syncing dataset to GraphDB...'
+            }
+        });
+        
+        // Simulate progress updates - this will be replaced by actual progress when available
+        const progressInterval = setInterval(() => {
+            const currentProgress = get().syncProgress || 0;
+            if (currentProgress < 90) {
+                set({ syncProgress: currentProgress + 10 });
+            } else {
+                clearInterval(progressInterval);
+            }
+        }, 500);
+        
+        // Request a sync operation from the extension
+        vscode.postMessage({
+            type: 'syncToGraphDB',
+            data: get().dataset
         });
         
         return Promise.resolve();

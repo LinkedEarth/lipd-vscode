@@ -7,6 +7,7 @@ import NavigationPanel from './components/NavigationPanel';
 import { EditorPanel } from './components/EditorPanel';
 import AppBarBreadcrumbs from './components/AppBarBreadcrumbs';
 import AppBarActions from './components/AppBarActions';
+import SyncProgressBar from './components/SyncProgressBar';
 import { RouterProvider } from './router';
 import { getVSCodeAPI, postMessage } from './vscode';
 
@@ -147,6 +148,10 @@ window.addEventListener('message', (event: MessageEvent) => {
             useLiPDStore.getState().setSaveComplete(message.success as boolean, message.error as string);
             break;
             
+        case 'syncComplete':
+            useLiPDStore.getState().setSyncComplete(message.success as boolean, message.error as string);
+            break;
+            
         case 'validation':
             // Handle validation results
             if (message.results) {
@@ -197,7 +202,10 @@ const App: React.FC = () => {
     const rightPanelOpen = useLiPDStore((state: any) => state.rightPanelOpen);
     const initialize = useLiPDStore((state: any) => state.initialize);
     const selectedNode = useLiPDStore((state: any) => state.selectedNode);
-    const themeMode = useLiPDStore((state: any) => state.themeMode);
+    const themeMode = useLiPDStore((state: any) => state.themeMode || window.initialTheme || 'light');
+    const datasetName = useLiPDStore((state: any) => state.datasetName);
+    const isLoading = useLiPDStore((state: any) => state.isLoading);
+    const loadingMessage = useLiPDStore((state: any) => state.loadingMessage);
     
     // Initialize the store when the app mounts and set the initial theme if available
     useEffect(() => {
@@ -326,15 +334,21 @@ const App: React.FC = () => {
             </RouterProvider>
             {notification && (
                 <Snackbar 
-                    open={true} 
-                    autoHideDuration={6000}
-                    anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                    open={!!notification} 
+                    autoHideDuration={6000} 
+                    onClose={() => useLiPDStore.setState({ notification: null })}
+                    anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
                 >
-                    <Alert severity={notification.type} sx={{ width: '100%' }}>
+                    <Alert 
+                        onClose={() => useLiPDStore.setState({ notification: null })} 
+                        severity={notification.type as any} 
+                        sx={{ width: '100%' }}
+                    >
                         {notification.message}
                     </Alert>
                 </Snackbar>
             )}
+            <SyncProgressBar />
         </ThemeProvider>
     );
 };
