@@ -5,7 +5,7 @@ import { Logger } from '../utils/logger';
 import { LiPD } from 'lipdjs';
 
 // Default GraphDB URL, can be overridden in settings
-const DEFAULT_GRAPHDB_URL = 'http://localhost:7200/repositories/LiPDVerse-dynamic';
+const DEFAULT_GRAPHDB_URL = 'https://linkedearth.graphdb.mint.isi.edu/repositories/LiPDVerse-dynamic';
 
 // Define tree data model for LiPD Explorer
 export class LiPDTreeItem extends vscode.TreeItem {
