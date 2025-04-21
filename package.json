@@ -2,7 +2,7 @@
   "name": "lipd-vscode",
   "displayName": "LiPD File Support",
   "description": "Support for reading and writing LiPD (Linked Paleo Data) files in VSCode",
-  "version": "1.2.3",
+  "version": "1.2.5",
   "publisher": "karyalimited",
   "author": {
     "name": "Varun Ratnakar",
@@ -216,6 +216,16 @@
           "type": "string",
           "default": "https://linkedearth.graphdb.mint.isi.edu/repositories/LiPD",
           "description": "URL of the GraphDB SPARQL endpoint for remote LiPD datasets"
+        },
+        "lipd.graphDbUsername": {
+          "type": "string",
+          "default": "",
+          "description": "Username for GraphDB authentication"
+        },
+        "lipd.graphDbPassword": {
+          "type": "string",
+          "default": "",
+          "description": "Password for GraphDB authentication (stored in clear text)"
         }
       }
     }
@@ -260,7 +270,7 @@
     "@mui/x-data-grid": "^7.28.3",
     "@mui/x-tree-view": "^7.28.1",
     "@types/mapbox-gl": "^3.4.1",
-    "lipdjs": "^0.1.3",
+    "lipdjs": "0.1.4",
     "mapbox-gl": "^3.11.0",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",

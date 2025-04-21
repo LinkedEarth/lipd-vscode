@@ -134,6 +134,16 @@ export class LiPDExplorerProvider implements vscode.TreeDataProvider<LiPDTreeIte
             lipd.setEndpoint(this.graphDbUrl);
             lipd.setRemote(true);
             
+            // Set authentication if credentials are available
+            const username = vscode.workspace.getConfiguration('lipd').get('graphDbUsername') as string;
+            const password = vscode.workspace.getConfiguration('lipd').get('graphDbPassword') as string;
+            
+            if (username && password) {
+                this.logger.info(`Using authentication with username: ${username}`);
+                // Use type assertion to avoid TypeScript errors
+                (lipd as any).setAuth({ username, password });
+            }
+            
             // Fetch all dataset names from the remote endpoint
             const datasets = await lipd.getAllDatasetNames();
             
@@ -203,6 +213,16 @@ export class LiPDExplorerProvider implements vscode.TreeDataProvider<LiPDTreeIte
                 lipd.setEndpoint(this.graphDbUrl);
                 lipd.setRemote(true);
                 
+                // Set authentication if credentials are available
+                const username = vscode.workspace.getConfiguration('lipd').get('graphDbUsername') as string;
+                const password = vscode.workspace.getConfiguration('lipd').get('graphDbPassword') as string;
+                
+                if (username && password) {
+                    this.logger.info(`Using authentication with username: ${username}`);
+                    // Use type assertion to avoid TypeScript errors
+                    (lipd as any).setAuth({ username, password });
+                }
+                
                 // Load the dataset from the remote endpoint
                 this.logger.info(`Fetching dataset ${datasetName} from GraphDB...`);
                 await lipd.loadRemoteDatasets(datasetName, false);
@@ -254,26 +274,65 @@ export class LiPDExplorerProvider implements vscode.TreeDataProvider<LiPDTreeIte
     }
 
     public async setGraphDbUrl(): Promise<void> {
+        // Create a multi-step input to collect GraphDB connection details
+        const currentUsername = vscode.workspace.getConfiguration('lipd').get('graphDbUsername') as string || '';
+        const currentPassword = vscode.workspace.getConfiguration('lipd').get('graphDbPassword') as string || '';
+        
+        // Step 1: Get the URL
         const newUrl = await vscode.window.showInputBox({
             prompt: 'Enter GraphDB SPARQL endpoint URL',
             value: this.graphDbUrl,
             placeHolder: DEFAULT_GRAPHDB_URL
         });
         
-        if (newUrl !== undefined) {
-            this.graphDbUrl = newUrl || DEFAULT_GRAPHDB_URL;
-            
-            // Save the new URL to workspace state
-            this.context.workspaceState.update('graphDbUrl', this.graphDbUrl);
-            
-            // Also save to settings
-            vscode.workspace.getConfiguration('lipd').update('graphDbUrl', this.graphDbUrl, true);
-            
-            // Refresh the explorer
-            this.refresh();
-            
-            vscode.window.showInformationMessage(`GraphDB endpoint updated: ${this.graphDbUrl}`);
+        if (newUrl === undefined) {
+            return; // User cancelled
         }
+        
+        // Step 2: Get the username
+        const username = await vscode.window.showInputBox({
+            prompt: 'Enter GraphDB username (leave empty for no authentication)',
+            value: currentUsername,
+            placeHolder: 'username'
+        });
+        
+        if (username === undefined) {
+            return; // User cancelled
+        }
+        
+        // Step 3: Get the password if username was provided
+        let password = '';
+        if (username) {
+            password = await vscode.window.showInputBox({
+                prompt: 'Enter GraphDB password',
+                value: currentPassword,
+                placeHolder: 'password',
+                password: true // Hide the input
+            }) || '';
+            
+            if (password === undefined) {
+                return; // User cancelled
+            }
+        }
+        
+        // Save the new values
+        this.graphDbUrl = newUrl || DEFAULT_GRAPHDB_URL;
+        
+        // Save the new URL to workspace state
+        this.context.workspaceState.update('graphDbUrl', this.graphDbUrl);
+        
+        // Also save to settings
+        await vscode.workspace.getConfiguration('lipd').update('graphDbUrl', this.graphDbUrl, true);
+        await vscode.workspace.getConfiguration('lipd').update('graphDbUsername', username, true);
+        await vscode.workspace.getConfiguration('lipd').update('graphDbPassword', password, true);
+        
+        // Refresh the explorer
+        this.refresh();
+        
+        vscode.window.showInformationMessage(
+            `GraphDB endpoint updated: ${this.graphDbUrl}` + 
+            (username ? ' with authentication' : '')
+        );
     }
 
     public dispose(): void {

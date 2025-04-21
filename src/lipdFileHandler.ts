@@ -103,11 +103,23 @@ export class LiPDFileHandler {
         }
     }
 
-    public async writeDatasetToGraphDB(dataset: Dataset, graphDbUrl: string): Promise<void> {
+    public async writeDatasetToGraphDB(
+        dataset: Dataset, 
+        graphDbUrl: string, 
+        auth?: { username: string; password: string }
+    ): Promise<void> {
         logger.info('Writing dataset to GraphDB');
         // Use lipdjs LiPD updateRemoteDatasets
         const lipd = new LiPD();
         lipd.setEndpoint(graphDbUrl);
+        
+        // Set authentication if provided
+        if (auth && auth.username && auth.password) {
+            logger.info(`Using authentication with username: ${auth.username}`);
+            // Use type assertion to avoid TypeScript errors
+            (lipd as any).setAuth(auth);
+        }
+        
         logger.info("Loading dataset");
         lipd.loadDatasets([dataset]);
         

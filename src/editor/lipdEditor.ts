@@ -709,14 +709,21 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
                             
                             // Get the GraphDB URL from settings
                             const graphDbUrl = vscode.workspace.getConfiguration('lipd').get('graphDbUrl') as string;
+                            const username = vscode.workspace.getConfiguration('lipd').get('graphDbUsername') as string;
+                            const password = vscode.workspace.getConfiguration('lipd').get('graphDbPassword') as string;
+                            
                             console.log('GraphDB URL:', graphDbUrl);
 
                             if (!graphDbUrl) {
                                 throw new Error('GraphDB URL is not configured. Please set the lipd.graphDbUrl setting.');
                             }
                             
-                            // Call the writeDatasetToGraphDB method on the lipdHandler with both dataset and URL
-                            await this.lipdHandler.writeDatasetToGraphDB(document.updated_dataset, graphDbUrl);
+                            // Call the writeDatasetToGraphDB method on the lipdHandler with dataset, URL and auth
+                            await this.lipdHandler.writeDatasetToGraphDB(
+                                document.updated_dataset, 
+                                graphDbUrl,
+                                username && password ? { username, password } : undefined
+                            );
                             console.log('Document synced successfully to GraphDB');
                             
                             // Notify webview of successful sync
