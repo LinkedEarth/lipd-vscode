@@ -1,4 +1,4 @@
-import { Change, ChangeLog, ChronData, DataTable, Funding, PaleoData, Person, Publication, Variable } from "lipdjs";
+import { Change, ChangeLog, ChronData, DataTable, Funding, PaleoData, Person, Publication, Variable, Compilation } from "lipdjs";
 
 export const getPublicationAuthorsLabel = (publication: Publication) : string => {
     return publication.authors.map((author) => author.name).join(', ');
@@ -66,4 +66,8 @@ export const getChangeLogCuratorLabel = (changeLog: ChangeLog) : string => {
 
 export const getChangeLogEntryLabel = (changeLogEntry: Change) : string => {
     return changeLogEntry.name || '';
+};
+
+export const getCompilationNameLabel = (compilation: Compilation) : string => {
+    return compilation.name || '';
 };

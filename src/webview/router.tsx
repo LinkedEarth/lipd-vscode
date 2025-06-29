@@ -1,7 +1,7 @@
 import React, { useContext, useCallback, useMemo } from 'react';
 import { useLiPDStore } from './store';
 import { DataTableEditor } from './components/DataTableEditor';
-import { datasetSchema, dataTableSchema, dataSchema, modelSchema, publicationSchema, Schema, variableSchema, fundingSchema, interpretationSchema, calibrationSchema, changeLogSchema, changeLogEntrySchema, SchemaField, personSchema, locationSchema } from './schemas';
+import { datasetSchema, dataTableSchema, dataSchema, modelSchema, publicationSchema, Schema, variableSchema, fundingSchema, interpretationSchema, calibrationSchema, changeLogSchema, changeLogEntrySchema, SchemaField, personSchema, locationSchema, compilationSchema } from './schemas';
 import { DefaultListEditor } from './components/DefaultListEditor';
 import { DefaultEditor } from './components/DefaultEditor';
 import { Box, CircularProgress, Typography } from '@mui/material';
@@ -11,7 +11,8 @@ import {
   getPublicationTitleLabel, 
   getDataTableLabel, 
   getVariableNameLabel,
-  getFundingLabel
+  getFundingLabel,
+  getCompilationNameLabel
 } from '../utils/labels';
 
 // Define route types
@@ -33,6 +34,7 @@ export interface RouteParams {
   varIndex?: number;
   interpretationIndex?: number;
   calibrationIndex?: number;
+  compilationIndex?: number;
   publicationIndex?: number;
   fundingIndex?: number;
   modelIndex?: number;
@@ -267,6 +269,25 @@ const routes: Route[] = [
     },
     schema: interpretationSchema
   }, 
+  // PaleoData or ChronData measurement Tables variables partOfCompilations
+  {
+    path: 'dataset/:dataType/:index/measurementTables/:tableIndex/variables/:varIndex/partOfCompilations/:compilationIndex',
+    component: DefaultEditor,
+    title: 'Compilation',
+    label: params => `Compilation ${Number(params.compilationIndex) + 1}`,
+    itemLabel: compilation => getCompilationNameLabel(compilation),
+    getParams: (path) => {
+      const match = path.match(/^dataset\.(paleoData|chronData)\.(\d+)\.measurementTables\.(\d+)\.variables\.(\d+)\.partOfCompilations\.(\d+)$/);
+      return match ? { 
+        dataType: match[1],
+        index: parseInt(match[2]), 
+        tableIndex: parseInt(match[3]),
+        varIndex: parseInt(match[4]),
+        compilationIndex: parseInt(match[5])
+      } : null;
+    },
+    schema: compilationSchema
+  }, 
   // PaleoData or ChronData measurement Tables variables calibrations
   {
     path: 'dataset/:dataType/:index/measurementTables/:tableIndex/variables/:varIndex/calibrations/:calibrationIndex',
@@ -357,6 +378,27 @@ const routes: Route[] = [
       } : null;
     },
     schema: interpretationSchema
+  }, 
+  // PaleoData or ChronData modeledBy Tables variables partOfCompilations
+  {
+    path: 'dataset/:dataType/:index/modeledBy/:modelIndex/:tableType/:tableIndex/variables/:varIndex/partOfCompilations/:compilationIndex',
+    component: DefaultEditor,
+    title: 'Compilation',
+    label: params => `Compilation ${Number(params.compilationIndex) + 1}`,
+    itemLabel: compilation => getCompilationNameLabel(compilation),
+    getParams: (path) => {
+      const match = path.match(/^dataset\.(paleoData|chronData)\.(\d+)\.modeledBy\.(\d+)\.(summaryTables|ensembleTables|distributionTables)\.(\d+)\.variables\.(\d+)\.partOfCompilations\.(\d+)$/);
+      return match ? { 
+        dataType: match[1],
+        index: parseInt(match[2]), 
+        modelIndex: parseInt(match[3]),
+        tableType: match[4],
+        tableIndex: parseInt(match[5]),
+        varIndex: parseInt(match[6]),
+        compilationIndex: parseInt(match[7])
+      } : null;
+    },
+    schema: compilationSchema
   }, 
   // PaleoData or ChronData modeledBy Tables variables calibrations
   {

@@ -15,7 +15,8 @@ import { Dataset, Publication, Person,
     getFundingLabel,
     getChangeLogLabel,
     getChangeLogCuratorLabel,
-    getChangeLogEntryLabel
+    getChangeLogEntryLabel,
+    getCompilationNameLabel
    } from "../utils/labels";
 
 export interface Schema {
@@ -324,6 +325,9 @@ export const compilationSchema: Schema = {
         name: { type: 'string', label: 'Name' },
         version: { type: 'string', label: 'Version' },
     },
+    label: {
+      primary: getCompilationNameLabel
+    },
     class: Compilation
 };
 
@@ -346,10 +350,14 @@ export const variableSchema: Schema = {
         },
         columnNumber: { type: 'number', label: 'Column Number' },
         variableType: { type: 'string', label: 'Variable Type' },
-        partOfCompilation: { 
-          type: 'object', 
-          label: 'Part of Compilation',
-          schema: compilationSchema
+        partOfCompilations: { 
+          type: 'array', 
+          label: 'Part of Compilations',
+          items: {
+            type: 'object',
+            label: 'Compilation',
+            schema: compilationSchema
+          }
         },
         missingValue: { type: 'string', label: 'Missing Value' },  
         maxValue: { type: 'number', label: 'Max Value' },
