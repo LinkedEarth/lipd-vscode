@@ -1,0 +1,55 @@
+{
+  "name": "@linkedearth/lipd-ui",
+  "version": "0.2.0",
+  "description": "React component library for LiPD data (shared between VS Code extension and other client UIs)",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "author": "LinkedEarth",
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "require": "./dist/index.js",
+      "import": "./dist/index.mjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "peerDependencies": {
+    "@emotion/react": "^11",
+    "@emotion/styled": "^11",
+    "@mui/icons-material": "^5",
+    "@mui/material": "^5",
+    "@mui/x-data-grid": "^6",
+    "@mui/x-tree-view": "^7",
+    "lipdjs": "^0.2.8",
+    "mapbox-gl": "^2",
+    "react": "^17 || ^18",
+    "react-dom": "^17 || ^18",
+    "zustand": "^4"
+  },
+  "devDependencies": {
+    "@emotion/react": "^11",
+    "@emotion/styled": "^11",
+    "@mui/icons-material": "^5.14.19",
+    "@mui/material": "^5.14.20",
+    "@mui/x-data-grid": "^6.18.2",
+    "@mui/x-tree-view": "^7.0.0",
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "lipdjs": "^0.2.8",
+    "mapbox-gl": "^2.15.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "tsup": "^7.2.0",
+    "typescript": "^4.9.0",
+    "zustand": "^4.4.7"
+  },
+  "scripts": {
+    "build": "tsup",
+    "demo": "cd demo && npm install && npm run dev",
+    "demo:build": "cd demo && npm run build"
+  },
+  "files": [
+    "dist"
+  ]
+}

@@ -1,8 +1,8 @@
-import create from 'zustand';
+import { create } from 'zustand';
 import { Dataset } from 'lipdjs';
 import { AppState, ThemeMode } from './types';
 import { getVSCodeAPI } from './vscode';
-import { getSchemaForPath } from './schemas'
+import { getSchemaForPath } from '@linkedearth/lipd-ui';
 
 // Get VS Code API singleton
 const vscode = getVSCodeAPI();
@@ -36,6 +36,9 @@ export const useLiPDStore = create<AppState>((set, get) => ({
     
     // Status notifications
     notification: null,
+    
+    // Sync confirmation dialog
+    syncConfirmDialogOpen: false,
     
     // Actions
     initialize: () => {
@@ -203,8 +206,19 @@ export const useLiPDStore = create<AppState>((set, get) => ({
     },
     
     syncDataset: () => {
-        // Set syncing state to true
+        // Show confirmation dialog instead of immediately syncing
+        set({ syncConfirmDialogOpen: true });
+        return Promise.resolve();
+    },
+    
+    setSyncConfirmDialogOpen: (open: boolean) => {
+        set({ syncConfirmDialogOpen: open });
+    },
+    
+    confirmSync: () => {
+        // Close dialog and start sync
         set({ 
+            syncConfirmDialogOpen: false,
             isSyncing: true,
             syncProgress: 10, // Initial progress indicator
             notification: {

@@ -2,7 +2,7 @@
   "name": "lipd-vscode",
   "displayName": "LiPD File Support",
   "description": "Support for reading and writing LiPD (Linked Paleo Data) files in VSCode",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "publisher": "karyalimited",
   "author": {
     "name": "Varun Ratnakar",
@@ -247,8 +247,8 @@
     "@types/glob": "^7.1.3",
     "@types/mocha": "^8.2.2",
     "@types/node": "14.x",
-    "@types/react": "^17.0.39",
-    "@types/react-dom": "^17.0.26",
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
     "@types/vscode": "^1.85.0",
     "@typescript-eslint/eslint-plugin": "^4.16.0",
     "@typescript-eslint/parser": "^4.16.0",
@@ -258,22 +258,26 @@
     "glob": "^7.1.6",
     "mocha": "^10.2.0",
     "nodemon": "^3.1.0",
+    "tsup": "^8.5.0",
     "typescript": "^4.5.5",
     "vscode-test": "^1.5.1"
   },
   "dependencies": {
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
+    "@linkedearth/lipd-ui": "^0.3.0",
     "@mui/icons-material": "^5.14.13",
     "@mui/lab": "^5.0.0-alpha.165",
     "@mui/material": "^5.17.1",
-    "@mui/x-data-grid": "^7.28.3",
+    "@mui/system": "^5.17.1",
+    "@mui/x-data-grid": "^6.18.2",
     "@mui/x-tree-view": "^7.28.1",
     "@types/mapbox-gl": "^3.4.1",
-    "lipdjs": "0.2.0",
+    "lipdjs": "0.2.8",
     "mapbox-gl": "^3.11.0",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2",
-    "zustand": "^3.7.1"
-  }
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "zustand": "^4.4.7"
+  },
+  "private": true
 }

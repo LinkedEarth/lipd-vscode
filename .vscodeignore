@@ -1,0 +1,78 @@
+# Environment and configuration files (SECURITY)
+.env
+.env.*
+
+# Development files
+.vscode/settings.json
+.DS_Store
+Thumbs.db
+
+# Source TypeScript files (compiled output is in out/)
+src/**
+tsconfig.json
+tsconfig.webview.json
+
+# Build tools and config
+esbuild.config.js
+.eslintrc.json
+
+# Node modules source (keep only essential files)
+node_modules/**/src/**
+node_modules/**/test/**
+node_modules/**/tests/**
+node_modules/**/*.test.js
+node_modules/**/*.spec.js
+node_modules/**/.nyc_output/**
+node_modules/**/coverage/**
+node_modules/**/*.md
+node_modules/**/CHANGELOG*
+node_modules/**/changelog*
+node_modules/**/*.ts
+node_modules/**/*.map
+
+# Git and version control
+.git
+.gitignore
+.gitattributes
+
+# Documentation and development files
+requirements.txt
+
+# Test files
+**/test/**
+**/*.test.*
+**/*.spec.*
+
+# Development dependencies
+package-lock.json
+
+# Previous releases
+lipd-vscode-1.0.0.vsix
+lipd-vscode-1.2.0.vsix
+lipd-vscode-1.2.1.vsix
+lipd-vscode-1.2.2.vsix
+lipd-vscode-1.2.3.vsix
+lipd-vscode-1.2.5.vsix
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Exclude monorepo package sources (only compiled dist is needed)
+packages/**/src/**
+packages/**/tsconfig*.json
+packages/**/tsup*.config.ts 

@@ -44,6 +44,33 @@ const createNodePolyfill = (moduleName) => {
     `;
   }
   
+  if (moduleName === 'stream') {
+    return `
+      export class Duplex {
+        constructor() {}
+        pipe() { return this; }
+        on() { return this; }
+        write() {}
+        end() {}
+      }
+      export default { Duplex };
+    `;
+  }
+  
+  if (moduleName === 'http' || moduleName === 'https') {
+    return `
+      export const request = () => ({ on: () => {}, write: () => {}, end: () => {} });
+      export default { request };
+    `;
+  }
+  
+  if (moduleName === 'url') {
+    return `
+      export const parse = (url) => ({ protocol: '', host: '', pathname: url });
+      export default { parse };
+    `;
+  }
+  
   return `export default {};`;
 };
 
@@ -144,16 +171,24 @@ const buildWebview = async () => {
       entryPoints: ['src/webview/index.tsx'],
       bundle: true,
       outfile: 'media/editor.js',
-      format: 'esm',
+      format: 'iife',
       sourcemap: true,
       platform: 'browser',
       define: {
-        'global': 'window',
-        'process.env.NODE_ENV': '"production"'
+        'process.env.NODE_ENV': '"development"',
+        'global': 'window'
       },
+      mainFields: ['module', 'main'], // prefer ESM modules
       loader: {
         '.ts': 'ts',
         '.tsx': 'tsx',
+      },
+      banner: {
+        js: `
+          if (typeof window !== 'undefined' && !window.process) {
+            window.process = { env: { NODE_ENV: 'production' } };
+          }
+        `
       },
       plugins: [
         {
@@ -161,6 +196,14 @@ const buildWebview = async () => {
           setup(build) {
             // Handle all node built-ins
             build.onResolve({ filter: /^(fs|path|os|crypto|zlib)$/ }, (args) => {
+              return {
+                path: args.path,
+                namespace: 'node-polyfill',
+              };
+            });
+            
+            // Handle additional Node.js built-ins
+            build.onResolve({ filter: /^(stream|http|https|url)$/ }, (args) => {
               return {
                 path: args.path,
                 namespace: 'node-polyfill',

@@ -52,6 +52,9 @@ export interface AppState {
     // Status notification
     notification: { type: string; message: string } | null;
     
+    // Sync confirmation dialog
+    syncConfirmDialogOpen: boolean;
+    
     // Actions
     initialize: () => void;
     setIsLoading: (isLoading: boolean) => void;
@@ -71,6 +74,8 @@ export interface AppState {
     saveDataset: () => Promise<void>;
     saveDatasetAs: () => Promise<void>;
     syncDataset: () => Promise<void>;
+    setSyncConfirmDialogOpen: (open: boolean) => void;
+    confirmSync: () => Promise<void>;
     toggleRightPanel: () => void;
     setSelectedTab: (tab: number) => void;
     updateDataset: (field: string, value: any) => void;

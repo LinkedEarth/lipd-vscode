@@ -2,13 +2,16 @@ import React, { useEffect, useMemo } from 'react';
 import { Box, CssBaseline, ThemeProvider, createTheme, Alert, Snackbar, AppBar, Toolbar, Typography } from '@mui/material';
 import { Dataset } from 'lipdjs';
 import { VSCodeMessage, ThemeMode } from './types';
-import { useLiPDStore } from './store';
-import NavigationPanel from './components/NavigationPanel';
-import { EditorPanel } from './components/EditorPanel';
-import AppBarBreadcrumbs from './components/AppBarBreadcrumbs';
-import AppBarActions from './components/AppBarActions';
-import SyncProgressBar from './components/SyncProgressBar';
-import { RouterProvider } from './router';
+import {
+  useLiPDStore,
+  NavigationPanel,
+  EditorPanel,
+  AppBarBreadcrumbs,
+  AppBarActions,
+  SyncProgressBar,
+  RouterProvider,
+  ConfirmDialog
+} from '@linkedearth/lipd-ui';
 import { getVSCodeAPI, postMessage } from './vscode';
 
 // Set up initialTheme from window if available
@@ -206,6 +209,9 @@ const App: React.FC = () => {
     const datasetName = useLiPDStore((state: any) => state.datasetName);
     const isLoading = useLiPDStore((state: any) => state.isLoading);
     const loadingMessage = useLiPDStore((state: any) => state.loadingMessage);
+    const syncConfirmDialogOpen = useLiPDStore((state: any) => state.syncConfirmDialogOpen);
+    const setSyncConfirmDialogOpen = useLiPDStore((state: any) => state.setSyncConfirmDialogOpen);
+    const confirmSync = useLiPDStore((state: any) => state.confirmSync);
     
     // Initialize the store when the app mounts and set the initial theme if available
     useEffect(() => {
@@ -217,6 +223,14 @@ const App: React.FC = () => {
         // Initialize the store
         initialize();
     }, [initialize]);
+
+    const handleSyncConfirm = () => {
+        confirmSync();
+    };
+
+    const handleSyncCancel = () => {
+        setSyncConfirmDialogOpen(false);
+    };
 
     // Create theme based on VS Code theme
     const theme = useMemo(() => createTheme({
@@ -320,7 +334,7 @@ const App: React.FC = () => {
                             borderColor: 'divider',
                             overflow: 'auto'
                         }}>
-                            <NavigationPanel dataset={dataset} />
+                            <NavigationPanel />
                         </Box>
                         <Box sx={{ 
                             flex: 1,
@@ -349,6 +363,13 @@ const App: React.FC = () => {
                 </Snackbar>
             )}
             <SyncProgressBar />
+            <ConfirmDialog
+                open={syncConfirmDialogOpen}
+                title="Sync to GraphDB"
+                message="Are you sure you want to sync this dataset to GraphDB? This action will update the remote database and requires authentication credentials."
+                onConfirm={handleSyncConfirm}
+                onCancel={handleSyncCancel}
+            />
         </ThemeProvider>
     );
 };
