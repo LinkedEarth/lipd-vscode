@@ -2,7 +2,7 @@
   "name": "lipd-vscode",
   "displayName": "LiPD File Support",
   "description": "Support for reading and writing LiPD (Linked Paleo Data) files in VSCode",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "publisher": "karyalimited",
   "author": {
     "name": "Varun Ratnakar",
@@ -265,7 +265,7 @@
   "dependencies": {
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
-    "@linkedearth/lipd-ui": "^0.3.0",
+    "@linkedearth/lipd-ui": "^0.4.0",
     "@mui/icons-material": "^5.14.13",
     "@mui/lab": "^5.0.0-alpha.165",
     "@mui/material": "^5.17.1",

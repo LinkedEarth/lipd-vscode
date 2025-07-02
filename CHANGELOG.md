@@ -2,6 +2,12 @@
 
 All notable changes to the "LiPD File Support" extension will be documented in this file.
 
+## [1.4.1] - 2025-07-02
+
+### Changed
+- Updated dependency `@linkedearth/lipd-ui` to **v0.4.0** for bug fixes and improved UI components performance
+- No code changes other than dependency bump
+
 ## [1.4.0] - 2024-12-15
 
 ### Changed
