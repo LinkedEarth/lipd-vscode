@@ -2,6 +2,20 @@
 
 All notable changes to the "LiPD File Support" extension will be documented in this file.
 
+## [1.4.0] - 2024-12-15
+
+### Changed
+- **Major UI Refactoring**: Migrated all UI components from local files to external `@linkedearth/lipd-ui` package
+- Removed 18 local component files (AppBarActions, AppBarBreadcrumbs, ChronDataTree, ConfirmDialog, etc.)
+- Simplified App.tsx to use components from the external package
+- Updated build configuration and dependencies to support external UI package
+- Reduced codebase size by ~3000 lines through component consolidation
+
+### Improved
+- Enhanced code maintainability by centralizing UI components in a shared package
+- Better separation of concerns between extension logic and UI components
+- Streamlined development workflow for UI updates across LinkedEarth projects
+
 ## [1.3.0] - 2024-12-15
 
 ### Added
