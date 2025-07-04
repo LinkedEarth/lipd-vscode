@@ -2,6 +2,36 @@
 
 All notable changes to the "LiPD File Support" extension will be documented in this file.
 
+## [1.5.0] - 2025-01-03
+
+### Added
+- Enhanced sync confirmation dialog with comprehensive information display:
+  * Shows GraphDB endpoint URL and target graph URI
+  * Checks if graph already exists with clear warnings for overwrites
+  * Validates authentication status with visual indicators
+  * Professional formatting using Material-UI components
+- Custom AppBarActions with professional Material-UI icons (Save, Save As, Sync, Undo, Redo)
+- Improved AppBar layout preventing breadcrumbs from pushing action icons off-screen
+- Smart text truncation for long breadcrumb paths with ellipsis
+
+### Changed
+- **Updated to lipd-ui v0.5.1** with enhanced saveRemoteLiPD functionality
+- Replaced legacy sync approach with new saveRemoteLiPD from lipd-ui library
+- Implemented smaller font sizes throughout the application (except breadcrumbs) for better information density
+- Enhanced VS Code store callbacks with new saveRemoteLiPD integration
+- Improved TypeScript declarations for all Material-UI components used
+
+### Fixed
+- Action icons now remain accessible even with very long breadcrumb paths
+- Proper text overflow handling in navigation breadcrumbs
+- Enhanced error handling and user feedback for sync operations
+- Better authentication validation before GraphDB sync operations
+
+### Technical
+- Added comprehensive TypeScript support for new Material-UI components
+- Improved build configuration and bundle optimization
+- Enhanced error handling in prepareSync and saveRemoteLiPD workflows
+
 ## [1.4.2] - 2025-07-02
 
 ### Changed
