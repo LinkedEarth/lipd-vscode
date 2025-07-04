@@ -19,5 +19,6 @@ root.render(
     </React.StrictMode>
 );
 
+// Hide the initial loading screen once React is mounted
 // Add console.log statements to track initialization
 console.log('Webview script loaded');

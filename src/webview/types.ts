@@ -12,7 +12,9 @@ export type VSCodeMessage =
     | { type: 'validation'; results: { errors?: Record<string, any>; warnings?: Record<string, any> } }
     | { type: 'themeChanged'; theme: ThemeMode }
     | { type: 'datasetChanged'; data: any; source: string }
-    | { type: 'undoRedoStateChanged'; canUndo: boolean; canRedo: boolean };
+    | { type: 'undoRedoStateChanged'; canUndo: boolean; canRedo: boolean }
+    | { type: 'syncInfo'; endpoint: string; graphUri: string; exists?: boolean; error?: string; hasAuth?: boolean } // message from extension with graph existence info
+    | { type: 'syncComplete'; success: boolean; syncCompleted?: boolean; error?: string };
 
 // Interface for notification state
 export interface Notification {
@@ -42,6 +44,7 @@ export interface AppState {
     selectedNode: string | null;
     expandedNodes: Set<string>;
     rightPanelOpen: boolean;
+    navPanelOpen: boolean;  // Added missing navigation panel state
     selectedTab: number;
     themeMode: ThemeMode;
     
@@ -51,6 +54,9 @@ export interface AppState {
     
     // Status notification
     notification: { type: string; message: string } | null;
+    
+    // Optional readonly state
+    readonly?: boolean;
     
     // Sync confirmation dialog
     syncConfirmDialogOpen: boolean;
@@ -77,6 +83,8 @@ export interface AppState {
     setSyncConfirmDialogOpen: (open: boolean) => void;
     confirmSync: () => Promise<void>;
     toggleRightPanel: () => void;
+    toggleNavPanel: () => void;  // Added missing navigation panel toggle
+    setNavPanelOpen: (open: boolean) => void;  // Added missing navigation panel setter
     setSelectedTab: (tab: number) => void;
     updateDataset: (field: string, value: any) => void;
     setExpandedNodes: (nodes: Set<string>) => void;

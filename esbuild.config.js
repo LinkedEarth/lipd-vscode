@@ -172,10 +172,11 @@ const buildWebview = async () => {
       bundle: true,
       outfile: 'media/editor.js',
       format: 'iife',
-      sourcemap: true,
+      sourcemap: false,
+      minify: true,
       platform: 'browser',
       define: {
-        'process.env.NODE_ENV': '"development"',
+        'process.env.NODE_ENV': '"production"',
         'global': 'window'
       },
       mainFields: ['module', 'main'], // prefer ESM modules

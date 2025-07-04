@@ -3,6 +3,8 @@ import { LiPDFileHandler } from '../lipdFileHandler';
 import { Dataset } from 'lipdjs';
 import * as path from 'path';
 import * as fs from 'fs';
+import fetch from 'node-fetch';
+
 // import { LiPD } from 'lipdjs';
 
 // Interface for an edit operation
@@ -206,12 +208,11 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
     ): Promise<LiPDDocument> {
         console.log('Opening document:', uri.fsPath);
         try {
-            // Create a new LiPD instance for each file to avoid collisions
-            const dataset = await this.lipdHandler.readLiPDFile(uri.fsPath);
-            if (!dataset) {
-                throw new Error('Failed to load dataset from file: Dataset is undefined');
-            }
-            const document = new LiPDDocument(uri, dataset, dataset);
+            // Create an empty placeholder dataset so the webview can show a loading spinner immediately
+            const placeholder = new Dataset();
+
+            // Return the document immediately with the placeholder dataset
+            const document = new LiPDDocument(uri, placeholder, placeholder);
             return document;
         } catch (error) {
             // Log and show the error to the user
@@ -238,6 +239,42 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
         
         // Set up the webview
         await this.setupWebview(document, webviewPanel);
+
+        // Send a loading message so the webview can show a spinner
+        const datasetName = path.basename(document.uri.fsPath, '.lpd');
+        webviewPanel.webview.postMessage({
+            type: 'loading',
+            datasetName,
+            message: 'Loading dataset...'
+        });
+
+        // Load the dataset asynchronously
+        (async () => {
+            try {
+                const loaded = await this.lipdHandler.readLiPDFile(document.uri.fsPath);
+                if (!loaded) {
+                    throw new Error('Dataset is undefined');
+                }
+
+                // Update document
+                document.dataset = loaded;
+                document.updated_dataset = loaded;
+
+                // Send init message with real data
+                webviewPanel.webview.postMessage({
+                    type: 'init',
+                    data: loaded,
+                    canUndo: document.canUndo(),
+                    canRedo: document.canRedo()
+                });
+            } catch (err) {
+                console.error('Error loading dataset asynchronously:', err);
+                webviewPanel.webview.postMessage({
+                    type: 'error',
+                    error: err instanceof Error ? err.message : String(err)
+                });
+            }
+        })();
     }
 
     private getHtmlForWebview(webview: vscode.Webview): string {
@@ -619,23 +656,65 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
                             theme: this.getCurrentTheme()
                         });
                         
-                        // Check if we should send dataset data now
-                        // For remote datasets that are loading, we'll skip sending the empty dataset
-                        // The updateRemoteDataset method will send the actual data when it's loaded
-                        const isEmptyRemote = isRemote && 
-                                            (!document.updated_dataset || 
-                                             Object.keys(document.updated_dataset).length === 0);
-                        
-                        if (!isEmptyRemote) {
-                            // Then send the dataset initialization (only for non-loading remote datasets)
+                        // Check if this is a local file that needs loading
+                        if ((document as any)._isLoading && !isRemote) {
+                            // Send loading message for local file
                             webviewPanel.webview.postMessage({
-                                type: 'init',
-                                data: document.updated_dataset,
-                                canUndo: document.canUndo(),
-                                canRedo: document.canRedo(),
-                                isRemote: isRemote,
-                                datasetName: datasetName
+                                type: 'loading',
+                                datasetName: datasetName,
+                                message: 'Loading dataset from file...'
                             });
+                            
+                            // Load the dataset asynchronously
+                            try {
+                                const dataset = await this.lipdHandler.readLiPDFile(document.uri.fsPath);
+                                if (!dataset) {
+                                    throw new Error('Failed to load dataset from file: Dataset is undefined');
+                                }
+                                
+                                // Update the document with the loaded dataset
+                                document.dataset = dataset;
+                                document.updated_dataset = dataset;
+                                (document as any)._isLoading = false;
+                                
+                                // Send the dataset to the webview
+                                webviewPanel.webview.postMessage({
+                                    type: 'init',
+                                    data: dataset,
+                                    canUndo: document.canUndo(),
+                                    canRedo: document.canRedo(),
+                                    isRemote: false,
+                                    datasetName: datasetName
+                                });
+                            } catch (error) {
+                                console.error('Error loading local file:', error);
+                                (document as any)._isLoading = false;
+                                
+                                // Send error to webview
+                                webviewPanel.webview.postMessage({
+                                    type: 'error',
+                                    error: `Failed to load dataset: ${error instanceof Error ? error.message : String(error)}`
+                                });
+                            }
+                        } else {
+                            // Check if we should send dataset data now
+                            // For remote datasets that are loading, we'll skip sending the empty dataset
+                            // The updateRemoteDataset method will send the actual data when it's loaded
+                            const isEmptyRemote = isRemote && 
+                                                (!document.updated_dataset || 
+                                                 Object.keys(document.updated_dataset).length === 0);
+                            
+                            if (!isEmptyRemote) {
+                                // Then send the dataset initialization (only for non-loading remote datasets)
+                                webviewPanel.webview.postMessage({
+                                    type: 'init',
+                                    data: document.updated_dataset,
+                                    canUndo: document.canUndo(),
+                                    canRedo: document.canRedo(),
+                                    isRemote: isRemote,
+                                    datasetName: datasetName
+                                });
+                            }
                         }
                         
                         // Resolve the ready promise
@@ -703,52 +782,15 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
                         }
                         break;
                         
-                    case 'syncToGraphDB':
-                        try {
-                            console.log('Syncing document to GraphDB');
-                            
-                            // Get the GraphDB URL from settings
-                            const graphDbUrl = vscode.workspace.getConfiguration('lipd').get('graphDbUrl') as string;
-                            const username = vscode.workspace.getConfiguration('lipd').get('graphDbUsername') as string;
-                            const password = vscode.workspace.getConfiguration('lipd').get('graphDbPassword') as string;
-                            
-                            console.log('GraphDB URL:', graphDbUrl);
-
-                            if (!graphDbUrl) {
-                                throw new Error('GraphDB URL is not configured. Please set the lipd.graphDbUrl setting.');
-                            }
-                            
-                            // Call the writeDatasetToGraphDB method on the lipdHandler with dataset, URL and auth
-                            await this.lipdHandler.writeDatasetToGraphDB(
-                                document.updated_dataset, 
-                                graphDbUrl,
-                                username && password ? { username, password } : undefined
-                            );
-                            console.log('Document synced successfully to GraphDB');
-                            
-                            // Notify webview of successful sync
-                            webviewPanel.webview.postMessage({
-                                type: 'syncComplete',
-                                success: true,
-                                syncCompleted: true
-                            });
-                            
-                            // Notify the user
-                            vscode.window.showInformationMessage(`Dataset synced to GraphDB successfully`);
-                        } catch (error) {
-                            console.error('Error syncing document to GraphDB:', error);
-                            
-                            // Notify webview of sync failure
-                            webviewPanel.webview.postMessage({
-                                type: 'syncComplete',
-                                success: false,
-                                syncCompleted: false,
-                                error: error instanceof Error ? error.message : String(error)
-                            });
-                            
-                            // Show error message
-                            vscode.window.showErrorMessage(`Failed to sync dataset to GraphDB: ${error instanceof Error ? error.message : String(error)}`);
-                        }
+                    case 'saveRemoteLiPD':
+                        await this.handleSaveRemoteLiPD(document, webviewPanel);
+                        break;
+                        
+                    case 'sync':
+                        // Legacy sync message - redirect to saveRemoteLiPD
+                        console.log('Received legacy sync message, redirecting to saveRemoteLiPD');
+                        // Call the same logic as saveRemoteLiPD
+                        await this.handleSaveRemoteLiPD(document, webviewPanel);
                         break;
                         
                     case 'executeCommand':
@@ -797,6 +839,98 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
                         }
                         break;
                         
+                    case 'prepareSync':
+                        try {
+                            // Build graph URI info and check existence
+                            const graphDbUrl = vscode.workspace.getConfiguration('lipd').get('graphDbUrl') as string;
+                            const username = vscode.workspace.getConfiguration('lipd').get('graphDbUsername') as string;
+                            const password = vscode.workspace.getConfiguration('lipd').get('graphDbPassword') as string;
+                            
+                            // Check if authentication is needed but not provided
+                            const needsAuth = !username || !password;
+                            if (needsAuth) {
+                                // Prompt for authentication if not configured
+                                const shouldConfigure = await vscode.window.showWarningMessage(
+                                    'GraphDB credentials are not configured. Authentication may be required for syncing.',
+                                    'Configure Now',
+                                    'Continue Anyway'
+                                );
+                                
+                                if (shouldConfigure === 'Configure Now') {
+                                    // Open settings to configure credentials
+                                    await vscode.commands.executeCommand('workbench.action.openSettings', 'lipd.graphDb');
+                                    // Send error to cancel the sync dialog
+                                    webviewPanel.webview.postMessage({
+                                        type: 'syncInfo',
+                                        endpoint: graphDbUrl || '',
+                                        graphUri: '',
+                                        error: 'Please configure GraphDB credentials and try again.'
+                                    });
+                                    break;
+                                }
+                            }
+                            
+                            if (!graphDbUrl) {
+                                throw new Error('GraphDB URL is not configured');
+                            }
+                            // Sanitize dataset name locally (same logic as lipd-ui)
+                            const datasetName = document.updated_dataset.getName?.() || 'dataset';
+                            const sanitized = encodeURIComponent(datasetName.replace(/[^a-zA-Z0-9\-.]/g, '_'));
+                            const graphUri = `http://linked.earth/lipd/${sanitized}`;
+                            let exists: boolean | undefined = undefined;
+                            try {
+                                const query = `ASK { GRAPH <${graphUri}> { ?s ?p ?o } }`;
+                                const headers: any = {
+                                    'Content-Type': 'application/x-www-form-urlencoded',
+                                    'Accept': 'application/sparql-results+json'
+                                };
+                                
+                                if (username && password) {
+                                    headers['Authorization'] = 'Basic ' + Buffer.from(`${username}:${password}`).toString('base64');
+                                }
+                                
+                                const resp = await fetch(graphDbUrl, {
+                                    method: 'POST',
+                                    headers,
+                                    body: `query=${encodeURIComponent(query)}`,
+                                });
+                                if (resp.ok) {
+                                    const json = await resp.json();
+                                    exists = json.boolean === true;
+                                } else {
+                                    throw new Error(`SPARQL query failed: ${resp.status} ${resp.statusText}`);
+                                }
+                            } catch (err:any) {
+                                console.error('Error querying GraphDB:', err);
+                                webviewPanel.webview.postMessage({
+                                    type: 'syncInfo',
+                                    endpoint: graphDbUrl,
+                                    graphUri,
+                                    error: err instanceof Error ? err.message : String(err)
+                                });
+                                break;
+                            }
+                            
+                            // Send successful response with authentication status
+                            webviewPanel.webview.postMessage({
+                                type: 'syncInfo',
+                                endpoint: graphDbUrl,
+                                graphUri,
+                                exists,
+                                hasAuth: !needsAuth
+                            });
+                        } catch (err:any) {
+                            console.error('prepareSync error:', err);
+                            const graphDbUrl = vscode.workspace.getConfiguration('lipd').get('graphDbUrl') as string;
+                            webviewPanel.webview.postMessage({
+                                type: 'syncInfo',
+                                endpoint: graphDbUrl || '',
+                                graphUri: '',
+                                error: err instanceof Error ? err.message : String(err)
+                            });
+                        }
+                        break;
+                        
                     default:
                         console.log(`Unknown message type: ${message.type}`);
                 }
@@ -808,6 +942,89 @@ export class LiPDEditorProvider implements vscode.CustomEditorProvider<LiPDDocum
                 });
             }
         });
+    }
+
+    // Method to handle saving dataset to GraphDB using lipd-ui saveRemoteLiPD
+    private async handleSaveRemoteLiPD(document: LiPDDocument, webviewPanel: vscode.WebviewPanel): Promise<void> {
+        try {
+            console.log('Saving dataset to GraphDB using lipd-ui saveRemoteLiPD');
+            
+            // Get the GraphDB URL from settings
+            const graphDbUrl = vscode.workspace.getConfiguration('lipd').get('graphDbUrl') as string;
+            const username = vscode.workspace.getConfiguration('lipd').get('graphDbUsername') as string;
+            const password = vscode.workspace.getConfiguration('lipd').get('graphDbPassword') as string;
+            
+            console.log('GraphDB URL:', graphDbUrl);
+            console.log('Username configured:', !!username);
+            console.log('Password configured:', !!password);
+
+            if (!graphDbUrl) {
+                throw new Error('GraphDB URL is not configured. Please set the lipd.graphDbUrl setting.');
+            }
+            
+            // Get dataset name for logging
+            const datasetName = document.updated_dataset.getName?.() || 'Unknown Dataset';
+            console.log(`Starting saveRemoteLiPD for dataset: ${datasetName}`);
+            
+            // Notify the user that sync is starting
+            vscode.window.showInformationMessage(`Saving dataset "${datasetName}" to GraphDB...`);
+            
+            // Use the lipd-ui LiPDActions.saveRemoteLiPD method
+            const { LiPDActions } = await import('@linkedearth/lipd-ui');
+            const actions = new LiPDActions({
+                onProgress: (message: string) => {
+                    console.log(`Progress: ${message}`);
+                },
+                onError: (error: string) => {
+                    console.error(`Error: ${error}`);
+                },
+                onSuccess: (message: string) => {
+                    console.log(`Success: ${message}`);
+                }
+            });
+            
+            await actions.saveRemoteLiPD(document.updated_dataset, {
+                endpoint: graphDbUrl,
+                username: username || undefined,
+                password: password || undefined
+            });
+            
+            console.log('Dataset saved successfully to GraphDB using saveRemoteLiPD');
+            
+            // Notify webview of successful sync
+            webviewPanel.webview.postMessage({
+                type: 'syncComplete',
+                success: true,
+                syncCompleted: true
+            });
+            
+            // Notify the user
+            vscode.window.showInformationMessage(`Dataset "${datasetName}" saved to GraphDB successfully`);
+        } catch (error) {
+            console.error('Error saving dataset to GraphDB:', error);
+            
+            // Notify webview of sync failure
+            webviewPanel.webview.postMessage({
+                type: 'syncComplete',
+                success: false,
+                syncCompleted: false,
+                error: error instanceof Error ? error.message : String(error)
+            });
+            
+            // Show error message with more context
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            vscode.window.showErrorMessage(
+                `Failed to save dataset to GraphDB: ${errorMessage}`,
+                'Check Settings',
+                'Show Debug Output'
+            ).then(selection => {
+                if (selection === 'Check Settings') {
+                    vscode.commands.executeCommand('lipd-vscode.setGraphDbUrl');
+                } else if (selection === 'Show Debug Output') {
+                    vscode.commands.executeCommand('lipd-vscode.showOutput');
+                }
+            });
+        }
     }
 
     // Method to save a remote dataset (not associated with a local file)

@@ -35,6 +35,10 @@ declare module '@mui/material' {
   export const TableCell: React.ComponentType<any>;
   export const TableContainer: React.ComponentType<any>;
   export const Breadcrumbs: React.ComponentType<any>;
+  export const Dialog: React.ComponentType<any>;
+  export const DialogTitle: React.ComponentType<any>;
+  export const DialogContent: React.ComponentType<any>;
+  export const DialogActions: React.ComponentType<any>;
   export function createTheme(options: any): any;
 }
 
@@ -54,4 +58,8 @@ declare module '@mui/icons-material' {
   export const Edit: React.ComponentType<any>;
   export const NavigateNext: React.ComponentType<any>;
   export const Home: React.ComponentType<any>;
+  export const SaveAs: React.ComponentType<any>;
+  export const CloudUpload: React.ComponentType<any>;
+  export const Undo: React.ComponentType<any>;
+  export const Redo: React.ComponentType<any>;
 } 

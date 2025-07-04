@@ -109,24 +109,69 @@ export class LiPDFileHandler {
         auth?: { username: string; password: string }
     ): Promise<void> {
         logger.info('Writing dataset to GraphDB');
-        // Use lipdjs LiPD updateRemoteDatasets
-        const lipd = new LiPD();
-        lipd.setEndpoint(graphDbUrl);
+        logger.info(`GraphDB URL: ${graphDbUrl}`);
+        logger.info(`Authentication: ${auth ? 'enabled' : 'disabled'}`);
         
-        // Set authentication if provided
-        if (auth && auth.username && auth.password) {
-            logger.info(`Using authentication with username: ${auth.username}`);
-            // Use type assertion to avoid TypeScript errors
-            (lipd as any).setAuth(auth);
+        try {
+            // Use lipdjs LiPD updateRemoteDatasets
+            const lipd = new LiPD();
+            lipd.setEndpoint(graphDbUrl);
+            logger.info('GraphDB endpoint set');
+            
+            // Set authentication if provided
+            if (auth && auth.username && auth.password) {
+                logger.info(`Using authentication with username: ${auth.username}`);
+                // Use type assertion to avoid TypeScript errors
+                (lipd as any).setAuth(auth);
+                logger.info('Authentication configured');
+            }
+            
+            logger.info("Loading dataset into LiPD instance");
+            lipd.loadDatasets([dataset]);
+            logger.info("Dataset loaded successfully");
+            
+            logger.info("Getting dataset names from loaded data");
+            const dsnames = await lipd.getAllDatasetNames();
+            logger.info(`Dataset names found: ${dsnames.join(', ')}`);
+            
+            if (!dsnames || dsnames.length === 0) {
+                throw new Error('No dataset names found in the loaded data. Cannot sync empty dataset.');
+            }
+            
+            logger.info(`Starting remote update for ${dsnames.length} dataset(s)`);
+            
+            // Create a promise with timeout to prevent hanging
+            const syncPromise = lipd.updateRemoteDatasets(dsnames);
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('GraphDB sync operation timed out after 25 seconds')), 25000)
+            );
+            
+            // Race between sync and timeout
+            await Promise.race([syncPromise, timeoutPromise]);
+            
+            logger.info('Dataset written to GraphDB successfully');
+        } catch (error) {
+            logger.error('Error writing dataset to GraphDB:', error);
+            
+            // Provide more specific error messages
+            if (error instanceof Error) {
+                if (error.message.includes('timeout') || error.message.includes('ETIMEDOUT')) {
+                    throw new Error(`GraphDB connection timed out. Please check your network connection and GraphDB endpoint: ${graphDbUrl}`);
+                } else if (error.message.includes('ENOTFOUND') || error.message.includes('ECONNREFUSED')) {
+                    throw new Error(`Cannot connect to GraphDB endpoint: ${graphDbUrl}. Please verify the URL is correct and the server is accessible.`);
+                } else if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+                    throw new Error(`Authentication failed. Please check your GraphDB username and password.`);
+                } else if (error.message.includes('403') || error.message.includes('Forbidden')) {
+                    throw new Error(`Access denied to GraphDB. Your account may not have write permissions.`);
+                } else if (error.message.includes('404') || error.message.includes('Not Found')) {
+                    throw new Error(`GraphDB repository not found. Please verify the endpoint URL: ${graphDbUrl}`);
+                } else {
+                    throw new Error(`GraphDB sync failed: ${error.message}`);
+                }
+            } else {
+                throw new Error(`GraphDB sync failed with unknown error: ${String(error)}`);
+            }
         }
-        
-        logger.info("Loading dataset");
-        lipd.loadDatasets([dataset]);
-        
-        const dsnames = await lipd.getAllDatasetNames();
-        logger.info(`Dataset names: ${dsnames.join(', ')}`);
-        await lipd.updateRemoteDatasets(dsnames);
-        logger.info('Dataset written to GraphDB');
     }
     
     private async saveWithCustomTempDir(filePath: string, dataset: Dataset): Promise<void> {
